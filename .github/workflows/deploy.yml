@@ -1,0 +1,45 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --include=dev
+
+      - name: Restore Live2D models (Git LFS / 手动放置)
+        run: |
+          # Live2D 模型与 Cubism Core 禁止再分发，不进仓库。
+          # 部署时如有需要，可在此步从私有对象存储下载，或跳过（站点自动降级为静态立绘）。
+          echo "Live2D models are excluded from the repo (license). Static fallback is used on CI."
+          mkdir -p public/models
+
+      - name: Build (Astro + OG + Pagefind)
+        run: npm run build
+        env:
+          SKIP_SUMMARIES: ${{ vars.SKIP_SUMMARIES }}
+          SKIP_SIMILARITIES: ${{ vars.SKIP_SIMILARITIES }}
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=zfzblog

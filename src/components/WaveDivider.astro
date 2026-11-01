@@ -1,0 +1,38 @@
+---
+/**
+ * 波浪分割 —— koharu 视觉语言的核心符号
+ * 三层错位 SVG，形成水面起伏的层次感
+ */
+interface Props {
+  /** 每一层填充色，默认取当前主题的卡片底色 */
+  color?: string;
+  color2?: string;
+  color3?: string;
+  /** 高度 px */
+  height?: number;
+  /** 是否反转（深色页脚上方用） */
+  flip?: boolean;
+}
+
+const {
+  color = 'var(--t-bg)',
+  color2 = 'var(--t-bg-soft)',
+  color3 = 'var(--t-bg-card)',
+  height = 90,
+} = Astro.props;
+---
+
+<div class="wave-divider" style={`height:${height}px`} aria-hidden="true">
+  <svg viewBox="0 0 1440 120" preserveAspectRatio="none">
+    <path
+      d="M0,60 C180,110 360,10 720,50 C1080,90 1260,30 1440,70 L1440,120 L0,120 Z"
+      fill={color3}
+      opacity="0.45"></path>
+    <path
+      d="M0,72 C240,120 420,26 760,62 C1100,98 1240,44 1440,80 L1440,120 L0,120 Z"
+      fill={color2}></path>
+    <path
+      d="M0,86 C200,124 460,44 800,74 C1120,102 1300,58 1440,92 L1440,120 L0,120 Z"
+      fill={color}></path>
+  </svg>
+</div>

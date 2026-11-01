@@ -1,0 +1,65 @@
+---
+/**
+ * 樱花粒子层 —— 全屏固定装饰层
+ *
+ * 设计要点：
+ * 1. 粒子只用 transform + opacity 做动画（见 global.css 的 petal-fall），
+ *    不碰 top/left，避免每帧触发 layout。
+ * 2. 数量按动效档位：lively=18 / subtle=0 / reduced=0。
+ * 3. 监听 FloatGroup 派发的 `motion-change` 事件，切换档位即时重建，无需刷新。
+ * 4. 全部 DOM 由 JS 生成，静态产物里只有一个空容器，不影响 SEO 与首屏。
+ */
+---
+
+<div class="petal-layer no-print" id="petal-layer" aria-hidden="true"></div>
+
+<script>
+  const layer = document.getElementById('petal-layer');
+
+  /** 各档位对应的花瓣数量 */
+  const PETAL_COUNT: Record<string, number> = {
+    lively: 18,
+    subtle: 0,
+    reduced: 0,
+  };
+
+  function currentLevel(): string {
+    return document.documentElement.getAttribute('data-motion') || 'lively';
+  }
+
+  function buildPetals(level: string) {
+    if (!layer) return;
+    // 清空旧花瓣（包括淡出中的）
+    layer.replaceChildren();
+    const n = PETAL_COUNT[level] ?? 0;
+    if (n <= 0) return;
+
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < n; i++) {
+      const p = document.createElement('span');
+      p.className = 'petal';
+      const size = 6 + Math.random() * 8; // 6~14px
+      p.style.width = `${size}px`;
+      p.style.height = `${size}px`;
+      // 起始横向位置（静态，不参与动画）
+      p.style.left = `${Math.random() * 100}%`;
+      // 飘落横向漂移量，供 keyframes 的 translate3d 使用
+      p.style.setProperty('--petal-drift', `${(Math.random() - 0.35) * 160}px`);
+      const dur = 9 + Math.random() * 8; // 9~17s
+      p.style.animationDuration = `${dur}s`;
+      p.style.animationDelay = `${-Math.random() * dur}s`; // 负延迟铺开相位，避免同批落下
+      p.style.opacity = String(0.5 + Math.random() * 0.5);
+      frag.appendChild(p);
+    }
+    layer.appendChild(frag);
+  }
+
+  // 初始构建（data-motion 已由 head 内联脚本设置好）
+  buildPetals(currentLevel());
+
+  // 档位切换：立即重建
+  window.addEventListener('motion-change', (e) => {
+    const level = (e as CustomEvent).detail?.level ?? 'lively';
+    buildPetals(level);
+  });
+</script>

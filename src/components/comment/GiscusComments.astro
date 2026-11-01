@@ -1,0 +1,109 @@
+---
+import { comments } from '@/config';
+
+const g = comments.giscus;
+
+/**
+ * 构建期防护（文档 §7.2）：
+ * repo 还是占位值 `username/repo`（或根本不像 `owner/repo`）时不渲染评论区，
+ * 避免给访客注入一个注定加载失败的 Giscus iframe。
+ */
+const REPO_PLACEHOLDER = 'username/repo';
+const isRealRepo = /^[\w.-]+\/[\w.-]+$/.test(g.repo) && g.repo !== REPO_PLACEHOLDER;
+const showComments = comments.provider === 'giscus' && isRealRepo;
+
+const cfg = {
+  repo: g.repo,
+  repoId: g.repoId,
+  category: g.category,
+  categoryId: g.categoryId,
+  mapping: g.mapping,
+  reactionsEnabled: g.reactionsEnabled,
+  emitMetadata: g.emitMetadata,
+  inputPosition: g.inputPosition,
+  theme: g.theme,
+  lang: g.lang,
+};
+---
+
+{showComments && (
+  <section class="giscus-wrap no-print" aria-label="评论区">
+    <div
+      class="giscus-lazy"
+      data-giscus={JSON.stringify(cfg)}
+      data-theme={g.theme}
+    >
+      <div class="giscus-placeholder">滚动到评论区才加载，需要 GitHub 登录才能评论。</div>
+    </div>
+  </section>
+)}
+
+<script is:inline>
+  (function () {
+    const box = document.querySelector('.giscus-lazy');
+    if (!box) return;
+
+    let cfg;
+    try {
+      cfg = JSON.parse(box.dataset.giscus || '{}');
+    } catch {
+      return;
+    }
+
+    /** 当前主题下 Giscus 应用的 theme 值 */
+    function themeNow() {
+      const raw = box.dataset.theme || 'preferred_color_scheme';
+      return raw === 'preferred_color_scheme'
+        ? (document.documentElement.classList.contains('dark') ? 'dark' : 'light')
+        : raw;
+    }
+
+    let injected = false;
+    function inject() {
+      if (injected) return;
+      injected = true;
+      const s = document.createElement('script');
+      s.src = 'https://giscus.app/client.js';
+      s.async = true;
+      s.crossOrigin = 'anonymous';
+      s.setAttribute('data-repo', cfg.repo);
+      s.setAttribute('data-repo-id', cfg.repoId);
+      s.setAttribute('data-category', cfg.category);
+      s.setAttribute('data-category-id', cfg.categoryId);
+      s.setAttribute('data-mapping', cfg.mapping);
+      s.setAttribute('data-reactions-enabled', cfg.reactionsEnabled);
+      s.setAttribute('data-emit-metadata', cfg.emitMetadata);
+      s.setAttribute('data-input-position', cfg.inputPosition);
+      s.setAttribute('data-theme', themeNow());
+      s.setAttribute('data-lang', cfg.lang);
+      s.setAttribute('data-loading', 'lazy');
+      box.appendChild(s);
+      box.querySelector('.giscus-placeholder')?.remove();
+    }
+
+    // 滚动到评论区附近才开始注入，不拖慢首屏
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) {
+        inject();
+        io.disconnect();
+      }
+    }, { rootMargin: '240px 0px' });
+    io.observe(box);
+    if (box.getBoundingClientRect().top < innerHeight + 240) {
+      inject();
+      io.disconnect();
+    }
+
+    // 主题跟随：Header 切换明暗时广播 theme-change
+    window.addEventListener('theme-change', (event) => {
+      const frame = box.querySelector('iframe.giscus-frame');
+      if (!frame || !frame.contentWindow) return;
+      const mode = (event.detail && event.detail.theme)
+        || themeNow();
+      frame.contentWindow.postMessage(
+        { giscus: { setConfig: { theme: mode } } },
+        'https://giscus.app'
+      );
+    });
+  })();
+</script>

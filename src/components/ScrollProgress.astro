@@ -1,0 +1,39 @@
+---
+/**
+ * 顶部滚动进度条 —— 3px 渐变条
+ *
+ * 设计要点：
+ * 1. 用 transform: scaleX() 驱动，只触发 compositing，不触发 layout。
+ * 2. scroll 事件用 rAF 节流，每帧最多更新一次。
+ * 3. reduced 档位下隐藏（CSS：html[data-motion='reduced'] .scroll-progress）。
+ */
+---
+
+<div class="scroll-progress no-print" id="scroll-progress" aria-hidden="true">
+  <div class="scroll-progress-bar" id="scroll-progress-bar"></div>
+</div>
+
+<script>
+  const bar = document.getElementById('scroll-progress-bar');
+  if (bar) {
+    let ticking = false;
+
+    const update = () => {
+      ticking = false;
+      const doc = document.documentElement;
+      const max = doc.scrollHeight - doc.clientHeight;
+      const ratio = max > 0 ? Math.min(Math.max(window.scrollY / max, 0), 1) : 0;
+      bar.style.transform = `scaleX(${ratio})`;
+    };
+
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(update);
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+    update();
+  }
+</script>

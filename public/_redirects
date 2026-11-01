@@ -1,0 +1,3 @@
+# Cloudflare Pages SPA/静态路由（可选）
+# 本项目 build.format = 'directory'，已经是目录式静态路由，通常无需自定义 redirects。
+# 保留占位以便未来需要。

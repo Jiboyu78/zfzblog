@@ -1,0 +1,463 @@
+---
+/**
+ * Live2D 看板娘 —— 右下角悬浮挂件
+ *
+ * 设计要点（都是实战里踩过的坑）：
+ * 1. 懒加载：等 window.load + requestIdleCallback 后才加载 Pixi，不抢首屏带宽
+ * 2. 降级链：WebGL 不可用 → 静态立绘；模型加载失败 → 隐藏组件，绝不白屏
+ * 3. 性能：空闲帧率限制 30fps，交互时提到 60fps；页面隐藏时暂停 Ticker
+ * 4. 事件去重：每次初始化前解绑旧监听，避免切换模型后回调叠加
+ * 5. 移动端：touch-action: none 防手势冲突；限制交互热区范围
+ * 6. 构建期探测：Cubism Core 是 Live2D Inc. 的专有软件，禁止再分发，
+ *    大多数站点根本没有它。与其在运行时反复请求一个 404，
+ *    不如构建时直接探测 —— 缺资源就完全不发起 Live2D 请求，走静态立绘。
+ */
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { live2d as live2dConfig } from '@/config';
+
+const PUB = fileURLToPath(new URL('../../public/', import.meta.url));
+
+/** Cubism Core 运行时是否存在（需自行从官网 SDK 放置） */
+const hasCore = existsSync(`${PUB}models/live2dcubismcore.min.js`);
+
+/** 只保留模型描述文件真实存在的模型 */
+const models = live2dConfig.models.filter((m) =>
+  existsSync(`${PUB}models/${m.id}/${m.id}.model3.json`)
+);
+const defaultModel = live2dConfig.defaultModel;
+/** 没有 Core 或没有可用模型 → 纯静态立绘模式 */
+const live2dEnabled = hasCore && models.length > 0;
+
+const { width, height } = live2dConfig.size;
+---
+
+<div
+  id="live2d-root"
+  class="live2d-root no-print"
+  data-default={defaultModel}
+  data-models={JSON.stringify(models)}
+  data-enabled={live2dEnabled ? 'true' : 'false'}
+>
+  <div id="live2d-stage" class="stage" aria-hidden="true"></div>
+
+  {/* 说话气泡 */}
+  <div id="live2d-bubble" class="bubble" role="status" aria-live="polite"></div>
+
+  {/* 控制条 */}
+  <div id="live2d-controls" class="controls">
+    <button class="ctl" id="l2d-switch" title="切换模型" aria-label="切换模型" hidden={models.length < 2}>⇄</button>
+    <button class="ctl" id="l2d-hide" title="隐藏看板娘" aria-label="隐藏看板娘">✕</button>
+  </div>
+
+  {/* 静态降级立绘（WebGL 不可用 / 无 Cubism Core 时显示） */}
+  <img id="l2d-fallback" class="fallback-img" src="/img/live2d-fallback.svg" alt="看板娘" hidden={live2dEnabled} />
+</div>
+
+<!-- 唤回按钮（隐藏后出现） -->
+<button id="live2d-restore" class="restore-btn no-print" hidden title="唤回看板娘" aria-label="唤回看板娘">
+  <span class="rb-icon" aria-hidden="true"></span>
+</button>
+
+<style>
+  .live2d-root {
+    position: fixed;
+    right: 1.6rem;
+    bottom: 15.6rem;
+    z-index: 45;
+    width: v-bind(width px);
+    height: v-bind(height px);
+    pointer-events: none;
+    transition: opacity 0.5s var(--t-ease), transform 0.5s var(--t-ease);
+  }
+  .live2d-root.is-hidden {
+    opacity: 0;
+    transform: translateX(30px) scale(0.9);
+    pointer-events: none;
+  }
+  .stage {
+    position: absolute;
+    inset: 0;
+    pointer-events: auto;
+    cursor: grab;
+    touch-action: none;
+  }
+  .stage:active { cursor: grabbing; }
+  .stage canvas { display: block; width: 100%; height: 100%; }
+
+  .fallback-img {
+    position: absolute;
+    bottom: 0;
+    right: 0.4rem;
+    height: 88%;
+    width: auto;
+    pointer-events: auto;
+    opacity: 0.94;
+    filter: drop-shadow(0 8px 18px rgb(0 0 0 / 0.18));
+  }
+
+  .bubble {
+    position: absolute;
+    top: -0.4rem;
+    right: 0;
+    max-width: 220px;
+    padding: 0.6rem 0.9rem;
+    font-size: 1.15rem;
+    line-height: 1.65;
+    color: var(--t-ink-strong);
+    background: var(--t-bg-card);
+    border: 1px solid var(--t-line);
+    border-radius: var(--t-radius-md);
+    box-shadow: var(--t-shadow-float);
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+    transition: opacity 0.3s var(--t-ease), transform 0.3s var(--t-ease);
+    pointer-events: none;
+  }
+  .bubble.is-visible { opacity: 1; transform: none; }
+
+  .controls {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    display: flex;
+    gap: 0.3rem;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .live2d-root:hover .controls { opacity: 1; }
+  .ctl {
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--t-radius-sm);
+    border: 1px solid var(--t-line);
+    background: var(--t-bg-card);
+    color: var(--t-ink-mute);
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.25s;
+  }
+  .ctl:hover { color: var(--t-primary); border-color: var(--t-primary); }
+
+  .restore-btn {
+    position: fixed;
+    right: 1.6rem;
+    bottom: 13rem;
+    z-index: 46;
+    width: 3.6rem;
+    height: 3.6rem;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 1px solid var(--t-line);
+    background: var(--t-bg-card);
+    color: var(--t-primary);
+    cursor: pointer;
+    box-shadow: var(--t-shadow-float);
+    transition: transform 0.35s var(--t-ease);
+  }
+  .restore-btn:hover { transform: scale(1.12) rotate(90deg); }
+  .rb-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+    display: block;
+    background: currentColor;
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E");
+  }
+
+  @media (max-width: 640px) {
+    .live2d-root { width: 100px; height: 140px; right: 0.2rem; bottom: 13rem; }
+    .fallback-img { height: 80%; right: 0; }
+    .bubble { max-width: 145px; font-size: 1.05rem; padding: 0.45rem 0.65rem; }
+    .restore-btn { width: 2.6rem; height: 2.6rem; right: 0.6rem; bottom: 17rem; }
+  }
+</style>
+
+<script>
+  interface L2DConfig {
+    models: { id: string; name: string }[];
+    defaultModel: string;
+  }
+
+  const MODELS = JSON.parse(
+    document.getElementById('live2d-root')?.dataset.models || '[]'
+  ) as L2DConfig['models'];
+  const DEFAULT_MODEL =
+    document.getElementById('live2d-root')?.dataset.default || 'shizuku';
+  /**
+   * 构建期探测结果：false 表示站点没有 Cubism Core / 没有模型文件。
+   * 此时完全不发起 Live2D 请求（避免每个页面都刷一条 404），
+   * 直接展示静态立绘。
+   */
+  const ENABLED = document.getElementById('live2d-root')?.dataset.enabled === 'true';
+
+  const root = document.getElementById('live2d-root');
+  const stage = document.getElementById('live2d-stage');
+  const bubble = document.getElementById('live2d-bubble');
+  const fallback = document.getElementById('l2d-fallback') as HTMLImageElement;
+  const restore = document.getElementById('live2d-restore') as HTMLButtonElement;
+
+  const TIPS = [
+    '今天也要好好写代码呀！',
+    '要不要看看我新写的题解？',
+    '滚动页面向下试试看~',
+    '按 ⌘K 可以全文搜索哦',
+    '这篇的推导有点绕，慢慢来',
+    '喝水了没？休息一下吧',
+    '算法题千奇百怪，多刷多总结',
+    '试试右下角切换动效强度',
+    '我也是 Live2D，不是真的小猫',
+  ];
+
+  const GREETINGS = [
+    { max: 6, text: '这么早？肝题要注意身体' },
+    { max: 11, text: '上午好，今天状态不错吧' },
+    { max: 14, text: '中午了，记得吃饭' },
+    { max: 18, text: '下午茶时间到' },
+    { max: 23, text: '晚上好，来刷题吗' },
+    { max: 24, text: '夜深了，别熬太晚' },
+  ];
+
+  let bubbleTimer = 0;
+  function say(text: string, ms = 3200) {
+    if (!bubble) return;
+    bubble.textContent = text;
+    bubble.classList.add('is-visible');
+    clearTimeout(bubbleTimer);
+    bubbleTimer = window.setTimeout(() => bubble.classList.remove('is-visible'), ms);
+  }
+
+  function greet() {
+    const h = new Date().getHours();
+    const g = GREETINGS.find((x) => h < x.max);
+    say(g ? g.text : '欢迎回来');
+  }
+
+  // ── WebGL 能力检测 ────────────────────────────────────────
+  function webglSupported(): boolean {
+    try {
+      const c = document.createElement('canvas');
+      return !!(c.getContext('webgl2') || c.getContext('webgl'));
+    } catch {
+      return false;
+    }
+  }
+
+  const rootEl = root;
+  if (rootEl) {
+    // 隐藏按钮 / 唤回
+    const hideBtn = document.getElementById('l2d-hide');
+    hideBtn?.addEventListener('click', () => {
+      rootEl.classList.add('is-hidden');
+      restore.hidden = false;
+      localStorage.setItem('l2d-hidden', '1');
+    });
+    restore?.addEventListener('click', () => {
+      rootEl.classList.remove('is-hidden');
+      restore.hidden = true;
+      localStorage.setItem('l2d-hidden', '0');
+      say('我回来啦！');
+    });
+    if (localStorage.getItem('l2d-hidden') === '1') {
+      rootEl.classList.add('is-hidden');
+      restore.hidden = false;
+    }
+
+    // 页面隐藏时暂停动画
+    document.addEventListener('visibilitychange', () => {
+      const app = (window as any).__l2dApp;
+      if (app) {
+        if (document.hidden) app.ticker?.stop();
+        else app.ticker?.start();
+      }
+    });
+
+    // ── 初始化 Live2D ───────────────────────────────────────
+    let app: any = null;
+    let model: any = null;
+    let currentModel = localStorage.getItem('l2d-model') || DEFAULT_MODEL;
+    let switching = false;
+
+    /**
+     * 加载 Cubism Core 运行时。
+     * 这是 Live2D Inc. 的专有软件，禁止再分发 —— 必须自行从官网 SDK 解压后
+     * 放到 public/models/live2dcubismcore.min.js。
+     * 加载失败时直接走静态立绘降级，不影响站点其余功能。
+     */
+    function loadCubismCore(): Promise<boolean> {
+      return new Promise((resolve) => {
+        if ((window as any).Live2DCubismCore) return resolve(true);
+        const existing = document.querySelector<HTMLScriptElement>('script[data-cubism-core]');
+        if (existing) {
+          existing.addEventListener('load', () => resolve(true));
+          existing.addEventListener('error', () => resolve(false));
+          return;
+        }
+        const s = document.createElement('script');
+        s.src = '/models/live2dcubismcore.min.js';
+        s.async = true;
+        s.dataset.cubismCore = '1';
+        s.onload = () => resolve(true);
+        s.onerror = () => {
+          console.warn('[live2d] 未找到 Cubism Core 运行时，请运行 scripts/setup-live2d.sh 查看放置说明');
+          resolve(false);
+        };
+        document.head.appendChild(s);
+      });
+    }
+
+    async function loadModel(id: string) {
+      if (!stage) return;
+      switching = true;
+      try {
+        // __LIVE2D_ENABLED__ 是构建期常量（见 astro.config.mjs）。
+        // 为 false 时整个分支会被 tree-shake，Pixi.js 不会进入产物。
+        if (!__LIVE2D_ENABLED__) {
+          if (fallback) fallback.hidden = false;
+          switching = false;
+          return;
+        }
+        const coreOk = await loadCubismCore();
+        if (!coreOk) {
+          if (fallback) fallback.hidden = false;
+          switching = false;
+          return;
+        }
+
+        const PIXI = await import('pixi.js');
+        // 只打包 Cubism 4（不含 Cubism 2.1），显著减小动态 chunk 体积。
+        const { Live2DModel } = await import('@jannchie/pixi-live2d-display/cubism4');
+
+        if (!app) {
+          app = new PIXI.Application();
+          await app.init({
+            width: stage.clientWidth || 200,
+            height: stage.clientHeight || 260,
+            backgroundAlpha: 0,
+            antialias: true,
+            resolution: Math.min(window.devicePixelRatio || 1, 2),
+            autoDensity: true,
+          });
+          (window as any).PIXI = PIXI;
+          (window as any).__l2dApp = app;
+          stage.appendChild(app.canvas);
+
+          // 空闲时 30fps，交互时 60fps
+          const origTick = app.ticker.maxFPS;
+          app.ticker.maxFPS = 30;
+          let interacting = false;
+          const bump = () => {
+            if (interacting) return;
+            interacting = true;
+            app.ticker.maxFPS = 60;
+            setTimeout(() => { app.ticker.maxFPS = origTick; interacting = false; }, 1600);
+          };
+          app.canvas.addEventListener('pointermove', bump, { passive: true });
+        }
+
+        if (model) {
+          app.stage.removeChild(model);
+          model.destroy({ children: true });
+          model = null;
+        }
+
+        const url = `/models/${id}/${id}.model3.json`;
+        model = await Live2DModel.from(url, { autoInteract: true });
+
+        // 适配画布
+        const w = stage.clientWidth || 200;
+        const h = stage.clientHeight || 260;
+        const scale = (h / 2.2) / model.internalModel.width;
+        model.scale.set(scale);
+        model.anchor.set(0.5, 1);
+        model.x = w / 2;
+        model.y = h + 6;
+
+        app.stage.addChild(model);
+
+        // 点击热区互动
+        model.on('hit', (hitAreas: string[]) => {
+          bump();
+          say(hitAreas.includes('body') ? '唔…被戳到了！' : '在戳我呀？');
+        });
+
+        currentModel = id;
+        localStorage.setItem('l2d-model', id);
+        switching = false;
+      } catch (err) {
+        console.warn('[live2d] 加载失败，降级为静态立绘：', err);
+        if (fallback) fallback.hidden = false;
+        switching = false;
+      }
+    }
+
+    function switchModel() {
+      if (switching || MODELS.length < 2) return;
+      const idx = MODELS.findIndex((m) => m.id === currentModel);
+      const next = MODELS[(idx + 1) % MODELS.length];
+      say(`切换到 ${next.name}～`);
+      loadModel(next.id);
+    }
+
+    document.getElementById('l2d-switch')?.addEventListener('click', switchModel);
+
+    // 随机说话 + 滚动时反应
+    setInterval(() => {
+      if (document.hidden || rootEl.classList.contains('is-hidden')) return;
+      say(TIPS[Math.floor(Math.random() * TIPS.length)]);
+    }, 42000);
+
+    let scrollTick = false;
+    window.addEventListener('scroll', () => {
+      if (scrollTick) return;
+      scrollTick = true;
+      requestAnimationFrame(() => {
+        scrollTick = false;
+        if (Math.random() < 0.12) say('你在找什么呢？');
+      });
+    }, { passive: true });
+
+    // ── 启动时机：load 后空闲期 ──────────────────────────────
+    function boot() {
+      if (!ENABLED) {
+        // 构建期已确认没有 Cubism Core / 模型文件 —— 不发任何请求，
+        // 只展示静态立绘 + 保留气泡互动。
+        if (fallback) fallback.hidden = false;
+        greet();
+        return;
+      }
+      if (!webglSupported()) {
+        console.info('[live2d] WebGL 不可用，使用静态立绘');
+        if (fallback) fallback.hidden = false;
+        return;
+      }
+      loadModel(currentModel);
+      greet();
+    }
+
+    if (document.readyState === 'complete') {
+      scheduleIdle(boot);
+    } else {
+      window.addEventListener('load', () => scheduleIdle(boot), { once: true });
+    }
+
+    function scheduleIdle(fn: () => void) {
+      if ('requestIdleCallback' in window) {
+        (window as any).requestIdleCallback(fn, { timeout: 3000 });
+      } else {
+        setTimeout(fn, 1500);
+      }
+    }
+
+    // 与右下角浮动工具组的开关通信
+    window.addEventListener('toggle-live2d', () => {
+      const hidden = rootEl.classList.toggle('is-hidden');
+      restore.hidden = !hidden;
+      localStorage.setItem('l2d-hidden', hidden ? '1' : '0');
+      say(hidden ? '那我先躲起来～' : '我回来啦！');
+    });
+  }
+</script>

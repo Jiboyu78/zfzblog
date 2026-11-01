@@ -1,0 +1,11 @@
+import { chromium } from 'playwright';
+const EXECUTABLE='/Users/admin78/Library/Caches/ms-playwright/chromium_headless_shell-1247/chrome-headless-shell-mac-arm64/chrome-headless-shell';
+const browser = await chromium.launch({ executablePath: EXECUTABLE, args:['--no-sandbox'] });
+const page = await browser.newPage();
+const bad = [];
+page.on('response', r => { if (r.status() >= 400) bad.push(r.status() + ' ' + r.url()); });
+await page.goto('http://127.0.0.1:4323/', { waitUntil: 'networkidle', timeout: 30000 });
+await page.waitForTimeout(1500);
+console.log('=== 失败请求 ===');
+bad.forEach(b => console.log(b));
+await browser.close();

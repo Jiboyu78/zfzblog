@@ -1,0 +1,52 @@
+---
+interface Props {
+  tags: { name: string; count: number }[];
+  active?: string;
+}
+const { tags, active } = Astro.props;
+const max = Math.max(...tags.map((t) => t.count), 1);
+---
+
+<div class="tag-cloud">
+  {tags.map((t) => {
+    const w = 0.9 + (t.count / max) * 0.5;
+    const isActive = t.name === active;
+    return (
+      <a
+        href={`/tags/${encodeURIComponent(t.name)}/`}
+        class={`tag-pill ${isActive ? 'is-active' : ''}`}
+        style={`--w:${w}`}
+      >
+        <span class="tp-name">#{t.name}</span>
+        <span class="tp-count">{t.count}</span>
+      </a>
+    );
+  })}
+</div>
+
+<style>
+  .tag-cloud { display: flex; flex-wrap: wrap; gap: 0.7rem 0.9rem; }
+  .tag-pill {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.45rem;
+    padding: 0.25em 0.7em;
+    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+    color: var(--color-primary);
+    border-radius: var(--radius-xs);
+    text-decoration: none;
+    font-size: calc(1.3rem * var(--w));
+    transition: background 0.25s, color 0.25s;
+  }
+  .tag-pill:hover { background: var(--color-primary); color: #fff; }
+  .tag-pill.is-active {
+    background: var(--color-primary);
+    color: #fff;
+    font-weight: 700;
+  }
+  .tp-count {
+    font-family: var(--font-mono);
+    font-size: 1.05rem;
+    opacity: 0.6;
+  }
+</style>

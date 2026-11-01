@@ -1,0 +1,82 @@
+---
+import { getMoments, type Moment } from '@/lib/moments';
+
+const MOOD_EMOJI: Record<string, string> = {
+  happy: '😄',
+  calm: '😌',
+  tired: '😮‍💨',
+  excited: '🤩',
+  sad: '😢',
+  thinking: '🤔',
+};
+
+const moments = getMoments();
+
+function dateOf(m: Moment) {
+  return new Date(m.id);
+}
+
+/** 按「YYYY-MM」分组，月份倒序、组内时间倒序 */
+const groups = new Map<string, Moment[]>();
+for (const m of moments) {
+  const d = dateOf(m);
+  const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  if (!groups.has(key)) groups.set(key, []);
+  groups.get(key)!.push(m);
+}
+const monthGroups = [...groups.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+
+const monthLabel = (key: string) => {
+  const [y, m] = key.split('-');
+  return `${y} 年 ${Number(m)} 月`;
+};
+
+const dateLabel = (m: Moment) =>
+  dateOf(m).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' });
+
+const timeLabel = (m: Moment) =>
+  dateOf(m).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
+---
+
+<div class="moments-timeline">
+  {monthGroups.map(([month, items]) => (
+    <section class="mt-month">
+      <h2 class="mt-month-label">{monthLabel(month)}</h2>
+      <div class="mt-items">
+        {items.map((m) => (
+          <article class="mt-item" id={`moment-${m.id}`}>
+            <div class="mt-axis">
+              <span class="mt-date">{dateLabel(m)}</span>
+              <span class="mt-node" aria-hidden="true" />
+            </div>
+            <div class="mt-card">
+              <div class="mt-card-head">
+                <time class="mt-time" datetime={m.id}>{timeLabel(m)}</time>
+                {m.mood && (
+                  <span class="mt-mood" title={m.mood}>{MOOD_EMOJI[m.mood] ?? m.mood}</span>
+                )}
+              </div>
+              <p class="mt-content">{m.content}</p>
+              {m.images && m.images.length > 0 && (
+                <div class="mt-images">
+                  {m.images.map((src) => (
+                    <img src={src} alt="" loading="lazy" decoding="async" />
+                  ))}
+                </div>
+              )}
+              {m.tags && m.tags.length > 0 && (
+                <div class="mt-tags">
+                  {m.tags.map((t) => <span class="mt-tag">#{t}</span>)}
+                </div>
+              )}
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  ))}
+</div>
+
+{monthGroups.length === 0 && (
+  <p class="mt-empty">还没有动态，去 <code>src/data/moments.json</code> 写第一条吧。</p>
+)}

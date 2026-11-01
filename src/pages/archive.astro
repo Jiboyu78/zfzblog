@@ -1,0 +1,95 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PostCard from '../components/PostCard.astro';
+import { activeCategories } from '@/config';
+
+const allPosts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+);
+
+// 按年份分组
+const byYear = new Map<string, typeof allPosts>();
+allPosts.forEach((p) => {
+  const y = String(p.data.pubDate.getFullYear());
+  if (!byYear.has(y)) byYear.set(y, []);
+  byYear.get(y)!.push(p);
+});
+
+const catCount = activeCategories(allPosts).map((c) => ({
+  name: c,
+  count: allPosts.filter((p) => p.data.category === c).length,
+})).filter((c) => c.count > 0);
+---
+
+<BaseLayout title="归档" kind="list">
+  <header class="page-head">
+    <h1 class="page-title">归档</h1>
+    <p class="page-sub">共 {allPosts.length} 篇文章，按时间倒序</p>
+  </header>
+
+  <div class="list-wrap">
+    <nav class="archive-stats reveal">
+      {catCount.map((c) => (
+        <a href={`/archive/${c.name}/`} class="as-item">
+          <b>{c.count}</b><span>{c.name}</span>
+        </a>
+      ))}
+    </nav>
+
+    { [...byYear.entries()].map(([year, posts]) => (
+      <section class="year-block">
+        <div class="year-head reveal">
+          <h2 class="year-title">{year}</h2>
+          <span class="year-count">{posts.length} 篇</span>
+          <span class="year-line"></span>
+        </div>
+        {posts.map((p, i) => <PostCard post={p} index={i} compact />)}
+      </section>
+    ))}
+  </div>
+</BaseLayout>
+
+<style>
+  .archive-stats {
+    display: flex;
+    gap: 0.5rem 1.6rem;
+    flex-wrap: wrap;
+    padding-bottom: 2rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .as-item {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    color: var(--fg-mute);
+    text-decoration: none;
+    transition: color 0.25s;
+  }
+  .as-item:hover { color: var(--color-primary); }
+  .as-item b {
+    font-family: var(--font-mono);
+    font-size: 1.45rem;
+    color: var(--color-primary);
+  }
+  .as-item span { font-size: 1.3rem; }
+
+  .year-block { margin-bottom: 2.5rem; }
+  .year-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.9rem;
+    margin-bottom: 0.5rem;
+    padding-top: 1.6rem;
+  }
+  .year-title {
+    font-size: 2.2rem;
+    margin: 0;
+    font-family: var(--font-mono);
+    color: var(--fg-strong);
+    letter-spacing: 1px;
+  }
+  .year-count { font-size: 1.2rem; color: var(--fg-mute); white-space: nowrap; }
+  .year-line { flex: 1; height: 1px; background: var(--border); }
+</style>

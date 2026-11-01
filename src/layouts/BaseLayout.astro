@@ -1,0 +1,235 @@
+---
+import '../styles/global.css';
+import 'katex/dist/katex.min.css';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import FloatGroup from '../components/FloatGroup.astro';
+import Live2DMascot from '../components/Live2DMascot.astro';
+import PetalLayer from '../components/PetalLayer.astro';
+import ScrollProgress from '../components/ScrollProgress.astro';
+import SearchDialog from '../components/SearchDialog.astro';
+import { site, features } from '@/config';
+import { themeStyleText } from '@/lib/theme-css';
+
+interface Props {
+  title?: string;
+  description?: string;
+  /** 页面类型 */
+  kind?: 'home' | 'post' | 'list' | 'page';
+  /** OG 分享图 */
+  ogImage?: string;
+  noIndex?: boolean;
+}
+
+const {
+  title,
+  description = site.description,
+  kind = 'page',
+  ogImage = '/og/default.png',
+  noIndex = false,
+} = Astro.props;
+
+const pageTitle = title ? `${title} | ${site.title}` : `${site.title} · ${site.subtitle}`;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const ogUrl = new URL(ogImage, Astro.site ?? site.url).href;
+const themeCss = themeStyleText();
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    <meta name="author" content={site.author} />
+    <link rel="canonical" href={canonical.href} />
+    {noIndex && <meta name="robots" content="noindex, nofollow" />}
+
+    <meta property="og:type" content={kind === 'post' ? 'article' : 'website'} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical.href} />
+    <meta property="og:site_name" content={site.title} />
+    <meta property="og:image" content={ogUrl} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="zh_CN" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={pageTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogUrl} />
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="alternate" type="application/rss+xml" title={site.title} href="/rss.xml" />
+
+    <!-- 主题变量：由 src/config/site.ts 的 preset 决定，运行时注入 -->
+    <style is:global set:html={themeCss} />
+
+    <!-- 字体预加载：中文等宽字体是首屏关键资源 -->
+    <link rel="preload" href="/fonts/maple-mono-subset.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/maple-mono-subset-700.woff2" as="font" type="font/woff2" crossorigin />
+
+    <!-- 主题防闪烁 -->
+    <script is:inline>
+      (function () {
+        try {
+          var saved = localStorage.getItem('theme');
+          var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (saved === 'dark' || (!saved && prefersDark)) {
+            document.documentElement.classList.add('dark');
+          }
+          // 动效档位：lively（灵动）/ subtle（克制）/ reduced（减弱）
+          // prefers-reduced-motion: reduce 的系统设置强制 reduced 档
+          var motion = localStorage.getItem('motion') || 'lively';
+          if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            motion = 'reduced';
+          }
+          document.documentElement.setAttribute('data-motion', motion);
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+
+  <body class={`kind-${kind}`}>
+    <a href="#main" class="skip-link">跳到主要内容</a>
+
+    {features.scrollProgress && <ScrollProgress />}
+    {features.petals && <PetalLayer />}
+
+    <Header />
+
+    <main id="main" class="site-main" data-kind={kind}>
+      <slot />
+    </main>
+
+    <Footer />
+    <FloatGroup />
+    <Live2DMascot />
+    <SearchDialog />
+
+    <script>
+      // 1. 滚动揭示
+      const revealObserver = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((e) => {
+            if (e.isIntersecting) {
+              e.target.classList.add('is-visible');
+              revealObserver.unobserve(e.target);
+            }
+          });
+        },
+        { threshold: 0.05, rootMargin: '0px 0px -30px 0px' }
+      );
+      document.querySelectorAll('.reveal').forEach((el, i) => {
+        (el as HTMLElement).style.transitionDelay = `${Math.min(i % 6, 5) * 70}ms`;
+      });
+
+      // 动效档位联动：lively 启用滚动揭示；subtle / reduced 直接全部可见
+      const revealEls = document.querySelectorAll('.reveal');
+      const applyRevealMode = (level: string) => {
+        if (level === 'lively') {
+          revealEls.forEach((el) => {
+            if (!el.classList.contains('is-visible')) revealObserver.observe(el);
+          });
+        } else {
+          revealObserver.disconnect();
+          revealEls.forEach((el) => el.classList.add('is-visible'));
+        }
+      };
+      applyRevealMode(document.documentElement.getAttribute('data-motion') || 'lively');
+      window.addEventListener('motion-change', (e) => {
+        applyRevealMode((e as CustomEvent).detail?.level ?? 'lively');
+      });
+
+      // 2. 数字滚动
+      const numObserver = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((e) => {
+            if (!e.isIntersecting) return;
+            const el = e.target as HTMLElement;
+            numObserver.unobserve(el);
+            const target = Number(el.dataset.count || 0);
+            const dur = 1000;
+            const t0 = performance.now();
+            const tick = (now: number) => {
+              const p = Math.min((now - t0) / dur, 1);
+              const eased = 1 - Math.pow(1 - p, 3);
+              el.textContent = Math.round(target * eased).toLocaleString();
+              if (p < 1) requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+          });
+        },
+        { threshold: 0.4 }
+      );
+      document.querySelectorAll('[data-count]').forEach((el) => numObserver.observe(el));
+
+      // 3. 代码块复制按钮
+      document.querySelectorAll('pre').forEach((pre) => {
+        if (pre.querySelector('.copy-btn')) return;
+        const code = pre.querySelector('code');
+        if (!code) return;
+        const btn = document.createElement('button');
+        btn.className = 'copy-btn';
+        btn.textContent = 'copy';
+        btn.setAttribute('aria-label', '复制代码');
+        btn.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(code.innerText);
+            btn.textContent = 'copied ✓';
+          } catch {
+            btn.textContent = 'failed';
+          }
+          setTimeout(() => (btn.textContent = 'copy'), 1600);
+        });
+        pre.appendChild(btn);
+      });
+    </script>
+
+    <style>
+      .skip-link {
+        position: absolute;
+        left: -9999px;
+        z-index: 100;
+        padding: 0.6rem 1rem;
+        background: var(--color-primary);
+        color: #fff;
+        text-decoration: none;
+      }
+      .skip-link:focus { left: 0; top: 0; }
+
+      .site-main {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 0 1.5rem;
+        min-height: 60vh;
+      }
+
+      /* 首页需要通栏（插画头图铺满全宽），内部容器自行处理左右留白 */
+      .site-main[data-kind='home'] {
+        max-width: none;
+        padding: 0;
+      }
+
+      :global(.copy-btn) {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        padding: 0.15rem 0.55rem;
+        font-size: 1.15rem;
+        font-family: var(--font-mono);
+        color: var(--fg-mute);
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.25s, color 0.25s;
+      }
+      :global(pre) { position: relative; }
+      :global(pre:hover .copy-btn) { opacity: 1; }
+      :global(.copy-btn:hover) { color: var(--color-primary); border-color: var(--color-primary); }
+    </style>
+  </body>
+</html>

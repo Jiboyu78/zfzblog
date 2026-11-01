@@ -1,0 +1,26 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PostCard from '../../components/PostCard.astro';
+import { activeCategories } from '@/config';
+
+const allPosts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+);
+---
+
+<BaseLayout title="全部文章" kind="list">
+  <header class="page-head">
+    <h1 class="page-title">全部文章</h1>
+    <p class="page-sub">共 {allPosts.length} 篇，按时间倒序</p>
+  </header>
+
+  <nav class="cat-nav">
+    <a href="/blog/" class="cn-link is-active">全部</a>
+    {activeCategories(allPosts).map((c) => <a href={`/archive/${c}/`} class="cn-link">{c}</a>)}
+  </nav>
+
+  <div class="list-wrap">
+    {allPosts.map((p, i) => <PostCard post={p} index={i} />)}
+  </div>
+</BaseLayout>

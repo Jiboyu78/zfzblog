@@ -1,0 +1,186 @@
+---
+import { site, nav, social, features } from '@/config';
+import WaveDivider from './WaveDivider.astro';
+
+const year = new Date().getFullYear();
+const socialList = Object.entries(social);
+---
+
+<footer class="site-footer no-print">
+  <WaveDivider
+    color="var(--t-bg)"
+    color2="var(--t-bg-soft)"
+    color3="var(--t-bg-card)"
+    height={70}
+  />
+
+  <div class="footer-bg">
+    <div class="container-page footer-inner">
+      <div class="f-brand">
+        <div class="f-name">{site.title}</div>
+        <p class="f-desc">{site.description}</p>
+        <div class="f-social">
+          {
+            socialList.map(([, s]) => (
+              <a
+                href={s.url}
+                class="f-social-btn"
+                target={s.url.startsWith('http') ? '_blank' : undefined}
+                rel={s.url.startsWith('http') ? 'noopener noreferrer' : undefined}
+                aria-label={s.label}
+              >
+                {s.label.slice(0, 2)}
+              </a>
+            ))
+          }
+        </div>
+      </div>
+
+      <div class="f-col">
+        <div class="f-title">导航</div>
+        <ul class="f-list">
+          {
+            nav.map((n) => (
+              <li>
+                <a href={n.href}>{n.title}</a>
+              </li>
+            ))
+          }
+          {features.search && (
+            <li>
+              <a href="/search/">全文搜索</a>
+            </li>
+          )}
+        </ul>
+      </div>
+
+      <div class="f-col">
+        <div class="f-title">订阅</div>
+        <ul class="f-list">
+          {features.rss && (
+            <li>
+              <a href="/rss.xml">RSS</a>
+            </li>
+          )}
+          <li><a href="/sitemap-index.xml">Sitemap</a></li>
+          {features.editor && (
+            <li>
+              <a href="/write/">写作室</a>
+            </li>
+          )}
+        </ul>
+      </div>
+
+      <div class="f-col">
+        <div class="f-title">关于</div>
+        <ul class="f-list">
+          <li><a href="/about/">关于我</a></li>
+          <li><a href="/friends/">友情链接</a></li>
+          {features.editor && (
+            <li>
+              <a href="/admin/">CMS 后台</a>
+            </li>
+          )}
+        </ul>
+      </div>
+    </div>
+
+    <div class="container-page f-bottom">
+      <span>© {site.startYear} – {year} {site.author}</span>
+      <span class="f-sep">·</span>
+      <span>Powered by Astro</span>
+      {site.icp && (
+        <>
+          <span class="f-sep">·</span>
+          <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener">
+            {site.icp}
+          </a>
+        </>
+      )}
+    </div>
+  </div>
+</footer>
+
+<style>
+  .footer-bg {
+    background: var(--t-bg-soft);
+    border-top: 1px solid var(--t-line);
+    padding-top: 3rem;
+  }
+
+  .footer-inner {
+    display: grid;
+    grid-template-columns: 1.6fr repeat(3, 1fr);
+    gap: 2.6rem;
+    padding-bottom: 2.6rem;
+  }
+
+  .f-name {
+    font-size: 1.7rem;
+    font-weight: 700;
+    color: var(--t-ink-strong);
+    margin-bottom: 0.6rem;
+  }
+  .f-desc {
+    font-size: 1.25rem;
+    color: var(--t-ink-mute);
+    line-height: 1.75;
+    margin: 0 0 1rem;
+    max-width: 32rem;
+  }
+  .f-social { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .f-social-btn {
+    display: grid;
+    place-items: center;
+    min-width: 3.2rem;
+    height: 3.2rem;
+    padding: 0 0.8rem;
+    font-size: 1.15rem;
+    color: var(--t-ink-mute);
+    background: var(--t-bg-card);
+    border: 1px solid var(--t-line);
+    border-radius: var(--t-radius-full);
+    transition: all 0.25s var(--t-ease);
+  }
+  .f-social-btn:hover {
+    color: #fff;
+    background: linear-gradient(135deg, var(--t-gradient-from), var(--t-gradient-to));
+    border-color: transparent;
+    transform: translateY(-2px);
+  }
+
+  .f-title {
+    font-size: 1.32rem;
+    font-weight: 700;
+    color: var(--t-ink-strong);
+    margin-bottom: 0.9rem;
+  }
+  .f-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+  .f-list a {
+    font-size: 1.25rem;
+    color: var(--t-ink-mute);
+    transition: color 0.2s;
+  }
+  .f-list a:hover { color: var(--t-primary); }
+
+  .f-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    padding-top: 1.4rem;
+    padding-bottom: 1.8rem;
+    border-top: 1px solid var(--t-line);
+    font-size: 1.18rem;
+    color: var(--t-ink-mute);
+  }
+  .f-sep { opacity: 0.5; }
+
+  @media (max-width: 860px) {
+    .footer-inner { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 560px) {
+    .footer-inner { grid-template-columns: 1fr; gap: 1.8rem; }
+  }
+</style>

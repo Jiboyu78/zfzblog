@@ -1,0 +1,69 @@
+{
+  "blog-rebuild-astro7": [
+    {
+      "id": "live2d-in-browser",
+      "score": 0.0525
+    },
+    {
+      "id": "live2d-pun-vlm-finetune",
+      "score": 0.0431
+    }
+  ],
+  "csp-s-2023-retro": [
+    {
+      "id": "live2d-pun-vlm-finetune",
+      "score": 0.0409
+    },
+    {
+      "id": "p5685-jsoi2013-jyy",
+      "score": 0.0368
+    },
+    {
+      "id": "live2d-in-browser",
+      "score": 0.0351
+    }
+  ],
+  "live2d-in-browser": [
+    {
+      "id": "blog-rebuild-astro7",
+      "score": 0.0525
+    },
+    {
+      "id": "p5685-jsoi2013-jyy",
+      "score": 0.0386
+    },
+    {
+      "id": "csp-s-2023-retro",
+      "score": 0.0351
+    },
+    {
+      "id": "live2d-pun-vlm-finetune",
+      "score": 0.0342
+    }
+  ],
+  "live2d-pun-vlm-finetune": [
+    {
+      "id": "blog-rebuild-astro7",
+      "score": 0.0431
+    },
+    {
+      "id": "csp-s-2023-retro",
+      "score": 0.0409
+    },
+    {
+      "id": "live2d-in-browser",
+      "score": 0.0342
+    }
+  ],
+  "p5685-jsoi2013-jyy": [
+    {
+      "id": "live2d-in-browser",
+      "score": 0.0386
+    },
+    {
+      "id": "csp-s-2023-retro",
+      "score": 0.0368
+    }
+  ],
+  "r4-syntax-demo": []
+}

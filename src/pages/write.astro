@@ -1,0 +1,675 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="写作台"
+  description="拖拽 Markdown、填表单、实时预览，一键导出文章文件。"
+  kind="page"
+  noIndex
+>
+  <div class="write-page">
+    <header class="wp-head">
+      <h1 class="wp-title">✍️ 写作台</h1>
+      <p class="wp-sub">
+        拖一个 <code>.md</code> 文件进来，或者直接在这里写。填好元信息，导出后放进
+        <code>src/content/blog/</code> 就能发布。
+      </p>
+      <div class="wp-modes">
+        <button class="mode-btn is-active" data-mode="editor">空白开始</button>
+        <button class="mode-btn" data-mode="upload">拖拽上传</button>
+        <a href="/admin/" class="mode-btn mode-link">Decap CMS 后台 →</a>
+      </div>
+    </header>
+
+    <div class="wp-body">
+      <!-- 左：编辑器 -->
+      <div class="wp-editor">
+        <!-- 元信息表单 -->
+        <div class="meta-form">
+          <label class="mf-field mf-wide">
+            <span>标题 <b>*</b></span>
+            <input id="f-title" type="text" placeholder="文章标题" maxlength="80" />
+          </label>
+          <label class="mf-field">
+            <span>分类</span>
+            <select id="f-category">
+              <option>OI</option>
+              <option>AI</option>
+              <option>工程</option>
+              <option>随笔</option>
+              <option>比赛</option>
+            </select>
+          </label>
+          <label class="mf-field">
+            <span>发布日期</span>
+            <input id="f-date" type="date" />
+          </label>
+          <label class="mf-field mf-wide">
+            <span>标签（逗号分隔）</span>
+            <input id="f-tags" type="text" placeholder="分块, 区间DP, JSOI" />
+          </label>
+          <label class="mf-field mf-wide">
+            <span>摘要（用于列表卡片与 SEO）</span>
+            <textarea id="f-desc" rows="2" placeholder="一两句话说清这篇文章讲了什么"></textarea>
+          </label>
+          <label class="mf-field mf-check">
+            <input id="f-featured" type="checkbox" />
+            <span>设为精选（首页顶部展示）</span>
+          </label>
+          <label class="mf-field mf-check">
+            <input id="f-draft" type="checkbox" />
+            <span>草稿（不进入列表）</span>
+          </label>
+        </div>
+
+        <!-- Markdown 编辑 -->
+        <div class="md-area" id="md-area">
+          <div class="md-toolbar">
+            <button class="tb-btn" data-md="**粗体**" title="粗体"><b>B</b></button>
+            <button class="tb-btn" data-md="_斜体_" title="斜体"><i>I</i></button>
+            <button class="tb-btn" data-md="`代码`" title="行内代码">&lt;/&gt;</button>
+            <button class="tb-btn" data-md="[链接](https://)" title="链接">🔗</button>
+            <button class="tb-btn" data-md="# 标题" title="标题">H</button>
+            <button class="tb-btn" data-md="> 引用" title="引用">❝</button>
+            <button class="tb-btn" data-md="- 列表项" title="列表">☰</button>
+            <button class="tb-btn" data-md="```cpp\n// 代码\n```" title="代码块">▤</button>
+            <span class="tb-spacer"></span>
+            <span class="tb-count" id="md-count">0 字</span>
+          </div>
+          <!-- 编辑器挂载点：OiEditor（marked 实时预览，~64KB）注入于此 -->
+          <div id="editor-mount" class="oi-editor-mount"></div>
+          <noscript><p>编辑器需要启用 JavaScript。</p></noscript>
+        </div>
+
+        <!-- 拖拽区 -->
+        <div class="drop-zone" id="drop-zone">
+          <div class="dz-inner">
+            <div class="dz-icon">📄</div>
+            <p class="dz-title">把 Markdown 文件拖到这里</p>
+            <p class="dz-sub">支持 <code>.md</code> / <code>.markdown</code>，会自动解析 frontmatter</p>
+            <label class="dz-btn">
+              选择文件
+              <input type="file" id="file-input" accept=".md,.markdown,text/markdown" hidden />
+            </label>
+          </div>
+        </div>
+
+        <!-- 操作栏 -->
+        <div class="wp-actions">
+          <button class="act-btn act-primary" id="btn-export">⬇ 导出 .md 文件</button>
+          <button class="act-btn" id="btn-copy">📋 复制全文</button>
+          <button class="act-btn" id="btn-preview">👁 预览模式</button>
+          <button class="act-btn act-ghost" id="btn-reset">清空</button>
+        </div>
+
+        <div class="export-tip" id="export-tip" hidden>
+          <strong>✓ 已生成</strong>
+          <p>把下载的文件放到项目的 <code>src/content/blog/</code> 目录，运行 <code>npm run dev</code> 即可预览，<code>npm run build</code> 即可发布。</p>
+        </div>
+      </div>
+
+      <!-- 右：预览 -->
+      <div class="wp-preview">
+        <div class="pv-head">
+          <span class="pv-title">实时预览</span>
+          <span class="pv-mode" id="pv-mode">编辑中</span>
+        </div>
+        <div class="pv-body">
+          <article class="prose" id="preview-area">
+            <h1 id="pv-h1">预览标题</h1>
+            <p style="color:var(--fg-mute)">开始输入后，这里会实时渲染 Markdown 内容。</p>
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <!-- frontmatter 速查 -->
+    <section class="wp-ref">
+      <h2 class="ref-title">frontmatter 字段速查</h2>
+      <table>
+        <thead><tr><th>字段</th><th>必填</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><code>title</code></td><td>是</td><td>文章标题，最长 80 字符</td></tr>
+          <tr><td><code>pubDate</code></td><td>是</td><td>发布日期，会被自动排序</td></tr>
+          <tr><td><code>description</code></td><td>否</td><td>摘要，用于列表卡片与 SEO，最长 200</td></tr>
+          <tr><td><code>updatedDate</code></td><td>否</td><td>更新日期，会显示在文末</td></tr>
+          <tr><td><code>tags</code></td><td>否</td><td>标签数组，用于标签云</td></tr>
+          <tr><td><code>category</code></td><td>否</td><td>分类：OI / AI / 工程 / 随笔 / 比赛</td></tr>
+          <tr><td><code>featured</code></td><td>否</td><td>是否在首页精选区展示</td></tr>
+          <tr><td><code>draft</code></td><td>否</td><td>草稿，构建时跳过</td></tr>
+          <tr><td><code>heroImage</code></td><td>否</td><td>封面图路径</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+</BaseLayout>
+
+<style>
+  .write-page { max-width: 1180px; margin: 0 auto; padding: 0 1.5rem 3rem; }
+  .wp-head { margin-bottom: 2rem; padding-top: 2.4rem; padding-bottom: 1.4rem; border-bottom: 1px solid var(--border); }
+  .wp-title { font-size: 2.6rem; margin: 0 0 0.7rem; font-weight: 400; }
+  .wp-sub { color: var(--fg-mute); margin: 0 0 1.4rem; font-size: 1.35rem; line-height: 1.9; max-width: 68ch; }
+  .wp-sub code {
+    font-family: var(--font-mono); font-size: 0.92em;
+    background: var(--color-code-bg); color: var(--color-code);
+    padding: 0.12em 0.42em; border-radius: var(--radius-xs);
+  }
+  .wp-modes { display: flex; gap: 1.4rem; flex-wrap: wrap; align-items: center; }
+  .mode-btn {
+    padding: 0.45rem 0;
+    border: none;
+    border-bottom: 1px solid transparent;
+    background: none;
+    color: var(--fg-mute);
+    font-size: 1.35rem;
+    cursor: pointer;
+    text-decoration: none;
+    transition: color 0.25s, border-color 0.25s;
+  }
+  .mode-btn:hover { color: var(--color-primary); }
+  .mode-btn.is-active {
+    color: var(--color-primary);
+    font-weight: 700;
+    border-bottom-color: var(--color-primary);
+  }
+  .mode-link { margin-left: auto; }
+
+  .wp-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    align-items: start;
+  }
+
+  .wp-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    padding: 1.4rem 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* 表单 */
+  .meta-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+  .mf-field { display: flex; flex-direction: column; gap: 0.4rem; }
+  .mf-wide { grid-column: 1 / -1; }
+  .mf-field > span { font-size: 1.2rem; color: var(--fg-mute); }
+  .mf-field > span b { color: var(--color-code); }
+  .mf-field input[type='text'],
+  .mf-field input[type='date'],
+  .mf-field select,
+  .mf-field textarea {
+    font-family: inherit;
+    font-size: 1.3rem;
+    padding: 0.6rem 0.7rem;
+    border-radius: var(--radius-xs);
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--fg-strong);
+    outline: none;
+    transition: border-color 0.25s;
+    resize: vertical;
+  }
+  .mf-field input:focus,
+  .mf-field select:focus,
+  .mf-field textarea:focus { border-color: var(--color-primary); }
+  .mf-check { flex-direction: row; align-items: center; gap: 0.6rem; }
+  .mf-check input { width: 15px; height: 15px; accent-color: var(--color-primary); }
+
+  /* Markdown 编辑区 */
+  .md-area {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xs);
+    overflow: hidden;
+    background: var(--bg);
+  }
+  .md-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-soft);
+  }
+  .tb-btn {
+    min-width: 26px; height: 24px;
+    padding: 0 0.4rem;
+    border-radius: var(--radius-xs);
+    border: none;
+    background: transparent;
+    color: var(--fg-mute);
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .tb-btn:hover { background: color-mix(in srgb, var(--color-primary) 12%, transparent); color: var(--color-primary); }
+  .tb-spacer { flex: 1; }
+  .tb-count { font-size: 1.15rem; color: var(--fg-mute); font-family: var(--font-mono); }
+  .md-input {
+    width: 100%;
+    min-height: 340px;
+    padding: 1rem;
+    border: none;
+    outline: none;
+    resize: vertical;
+    background: transparent;
+    color: var(--fg-strong);
+    font-family: var(--font-mono);
+    font-size: 1.3rem;
+    line-height: 1.85;
+    tab-size: 2;
+  }
+
+  /* 拖拽区 */
+  .drop-zone { display: none; }
+  .drop-zone.is-active { display: block; }
+  .dz-inner {
+    padding: 2.6rem 1.5rem;
+    text-align: center;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
+    transition: all 0.3s var(--ease-out);
+  }
+  .drop-zone.is-over .dz-inner {
+    border-color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+  }
+  .dz-icon { font-size: 2.6rem; margin-bottom: 0.6rem; }
+  .dz-title { font-size: 1.4rem; color: var(--fg-strong); margin: 0 0 0.35rem; }
+  .dz-sub { font-size: 1.25rem; color: var(--fg-mute); margin: 0 0 1.1rem; }
+  .dz-sub code {
+    font-family: var(--font-mono); font-size: 0.92em;
+    background: var(--color-code-bg); color: var(--color-code);
+    padding: 0.1em 0.35em; border-radius: var(--radius-xs);
+  }
+  .dz-btn {
+    display: inline-block;
+    padding: 0.55rem 1.2rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xs);
+    background: var(--bg);
+    color: var(--fg-strong);
+    font-size: 1.25rem;
+    cursor: pointer;
+  }
+  .dz-btn:hover { color: var(--color-primary); border-color: var(--color-primary); }
+
+  /* 操作栏 */
+  .wp-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+  .act-btn {
+    padding: 0.6rem 1.1rem;
+    border-radius: var(--radius-xs);
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--fg);
+    font-size: 1.25rem;
+    cursor: pointer;
+    transition: all 0.25s var(--ease-out);
+  }
+  .act-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+  .act-primary {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #fff;
+    font-weight: 700;
+  }
+  .act-primary:hover { background: var(--color-primary-dark); border-color: var(--color-primary-dark); color: #fff; }
+  .act-ghost { margin-left: auto; color: var(--fg-mute); }
+
+  .export-tip {
+    padding: 0.9rem 1.1rem;
+    border-radius: var(--radius-xs);
+    background: color-mix(in srgb, #4a9d5f 10%, transparent);
+    border: 1px solid color-mix(in srgb, #4a9d5f 32%, transparent);
+    font-size: 1.25rem;
+    line-height: 1.8;
+  }
+  .export-tip strong { color: #4a9d5f; }
+  .export-tip p { margin: 0.35rem 0 0; color: var(--fg-mute); }
+  .export-tip code {
+    font-family: var(--font-mono); font-size: 0.92em;
+    background: var(--color-code-bg); color: var(--color-code);
+    padding: 0.1em 0.35em; border-radius: var(--radius-xs);
+  }
+
+  /* 预览 */
+  .wp-preview {
+    padding: 0;
+    overflow: hidden;
+    position: sticky;
+    top: 6rem;
+    max-height: calc(100vh - 8rem);
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xs);
+  }
+  .pv-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.7rem 1.1rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-soft);
+  }
+  .pv-title { font-size: 1.25rem; font-weight: 700; color: var(--fg-strong); }
+  .pv-mode { font-size: 1.15rem; color: var(--fg-mute); font-family: var(--font-mono); }
+  .pv-body { overflow-y: auto; padding: 1.4rem 1.5rem; flex: 1; }
+  .pv-body :global(h1) { font-size: 2rem; margin: 0 0 0.8rem; }
+  .pv-body :global(h2) { font-size: 1.6rem; }
+  .pv-body :global(pre) { font-size: 1.2rem; }
+  .pv-body :global(code) { font-family: var(--font-mono); }
+
+  /* 速查表 */
+  .wp-ref {
+    margin-top: 2.4rem;
+    padding: 1.6rem 0 0;
+    border-top: 1px solid var(--border);
+  }
+  .ref-title { font-size: 1.7rem; margin: 0 0 1rem; }
+  .wp-ref table { width: 100%; border-collapse: collapse; font-size: 1.25rem; }
+  .wp-ref th, .wp-ref td { padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid var(--border-soft); }
+  .wp-ref th { color: var(--fg-mute); font-size: 1.15rem; font-weight: 700; }
+  .wp-ref td:first-child { width: 180px; }
+  .wp-ref code { font-family: var(--font-mono); font-size: 0.92em; color: var(--color-code); }
+
+  @media (max-width: 1000px) {
+    .wp-body { grid-template-columns: 1fr; }
+    .wp-preview { position: static; max-height: 520px; }
+    .mode-link { margin-left: 0; }
+  }
+</style>
+
+<script is:inline src="/editor/editor.js"></script>
+
+<script>
+  const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector(s) as T;
+  const title = $<HTMLInputElement>('#f-title');
+  const desc = $<HTMLTextAreaElement>('#f-desc');
+  const tags = $<HTMLInputElement>('#f-tags');
+  const category = $<HTMLSelectElement>('#f-category');
+  const date = $<HTMLInputElement>('#f-date');
+  const featured = $<HTMLInputElement>('#f-featured');
+  const draft = $<HTMLInputElement>('#f-draft');
+  const preview = $('#preview-area');
+  const count = $('#md-count');
+  const mountEl = $('#editor-mount');
+  const DRAFT_KEY = 'editor:draft:current';
+  const DRAFTS_KEY = 'editor:drafts';
+
+  date.value = new Date().toISOString().slice(0, 10);
+
+  /** OiEditor 实例（由 /editor/editor.js 提供，加载失败时降级为多行文本框） */
+  let editor: any = null;
+
+  function esc(s: string) {
+    return s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' } as any)[c]);
+  }
+
+  function bodyValue(): string {
+    return editor ? editor.value : '';
+  }
+
+  /** 每次编辑后：更新字数 + 写草稿（节流） */
+  let saveTimer = 0;
+  function scheduleSave() {
+    clearTimeout(saveTimer);
+    saveTimer = window.setTimeout(saveDraft, 600);
+  }
+
+  function saveDraft() {
+    try {
+      const doc = {
+        title: title.value,
+        date: date.value,
+        description: desc.value,
+        category: category.value,
+        tags: tags.value,
+        body: bodyValue(),
+        draft: draft.checked,
+        featured: featured.checked,
+      };
+      localStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({ id: 'current', doc, updatedAt: Date.now() })
+      );
+      // 草稿箱列表（单条，供列表展示）
+      localStorage.setItem(
+        DRAFTS_KEY,
+        JSON.stringify([{ id: 'current', title: doc.title || '(未命名)', updatedAt: Date.now() }])
+      );
+      const hint = $('#draft-hint');
+      if (hint) hint.textContent = `草稿已保存 ${new Date().toLocaleTimeString('zh-CN')}`;
+    } catch {
+      /* 隐私模式下 localStorage 不可用，静默降级 */
+    }
+  }
+
+  function loadDraft(): boolean {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return false;
+      const { doc } = JSON.parse(raw);
+      if (!doc) return false;
+      title.value = doc.title || '';
+      date.value = doc.date || date.value;
+      desc.value = doc.description || '';
+      if (doc.category) category.value = doc.category;
+      tags.value = doc.tags || '';
+      draft.checked = !!doc.draft;
+      featured.checked = !!doc.featured;
+      return !!doc.body;
+    } catch {
+      return false;
+    }
+  }
+
+  function updateCount() {
+    if (count) {
+      const chars = bodyValue().replace(/\s/g, '').length;
+      count.textContent = `${chars} 字`;
+    }
+  }
+
+  /** 预览：标题手写，正文交给 marked（OiEditor 回调时已渲染到 preview） */
+  function renderPreview() {
+    const t = title.value.trim();
+    const h1 = preview?.querySelector('h1');
+    if (h1) h1.textContent = t || '预览标题';
+    updateCount();
+  }
+
+  // ── 初始化编辑器 ──
+  function initEditor(initial: string) {
+    if ((window as any).OiEditor && mountEl) {
+      editor = (window as any).OiEditor.mount({
+        mountEl,
+        previewEl: preview,
+        initial,
+        onChange: () => { updateCount(); scheduleSave(); },
+      });
+    } else if (mountEl) {
+      // 降级：脚本加载失败时用原生 textarea
+      const ta = document.createElement('textarea');
+      ta.className = 'md-input';
+      ta.value = initial;
+      ta.rows = 20;
+      mountEl.appendChild(ta);
+      editor = {
+        get value() { return ta.value; },
+        set value(v: string) { ta.value = v; },
+        insert(s: string) { ta.setRangeText(s, ta.selectionStart, ta.selectionEnd, 'end'); },
+        focus() { ta.focus(); },
+      };
+      ta.addEventListener('input', () => { updateCount(); scheduleSave(); });
+    }
+    updateCount();
+  }
+
+  const hadDraft = loadDraft();
+  initEditor(hadDraft ? '' : '');
+  // 草稿正文在编辑器就绪后回填
+  if (hadDraft) {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      const body = raw ? JSON.parse(raw).doc?.body ?? '' : '';
+      if (editor && body) editor.value = body;
+    } catch { /* ignore */ }
+  }
+  renderPreview();
+
+  [title, desc, tags].forEach((el) => el.addEventListener('input', () => { renderPreview(); scheduleSave(); }));
+  [category, date].forEach((el) => el.addEventListener('change', scheduleSave));
+  [featured, draft].forEach((el) => el.addEventListener('change', scheduleSave));
+
+  // 工具栏插入（走编辑器 API，保持撤销栈）
+  document.querySelectorAll<HTMLButtonElement>('[data-md]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (!editor) return;
+      const snippet = btn.dataset.md!;
+      editor.insert(snippet.replace('文字', '文字'));
+      updateCount();
+      scheduleSave();
+    });
+  });
+
+  // ── 拖拽上传 / 选择文件 ──
+  const dz = $('#drop-zone');
+  const fileInput = $<HTMLInputElement>('#file-input');
+
+  document.querySelectorAll<HTMLButtonElement>('.mode-btn[data-mode]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.mode-btn[data-mode]').forEach((b) => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+      dz!.classList.toggle('is-active', btn.dataset.mode === 'upload');
+    });
+  });
+
+  function parseMarkdownFile(text: string, filename: string) {
+    const fmMatch = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+    const rest = fmMatch ? text.slice(fmMatch[0].length) : text;
+    if (fmMatch) {
+      const fm = fmMatch[1];
+      const get = (key: string) => {
+        const m = fm.match(new RegExp(`^${key}\\s*:\\s*(.+)$`, 'm'));
+        return m ? m[1].trim().replace(/^["']|["']$/g, '') : '';
+      };
+      title.value = get('title');
+      desc.value = get('description');
+      const tg = get('tags').replace(/^\[|\]$/g, '');
+      tags.value = tg.split(',').map((s) => s.trim()).filter(Boolean).join(', ');
+      if (get('category')) category.value = get('category');
+      if (get('pubDate')) date.value = get('pubDate').slice(0, 10);
+      featured.checked = get('featured') === 'true';
+      draft.checked = get('draft') === 'true';
+    } else {
+      title.value = filename.replace(/\.(md|markdown)$/i, '');
+    }
+    if (editor) editor.value = rest;
+    renderPreview();
+    scheduleSave();
+  }
+
+  function handleFile(file: File) {
+    const reader = new FileReader();
+    reader.onload = () => parseMarkdownFile(String(reader.result), file.name);
+    reader.readAsText(file, 'utf-8');
+  }
+
+  fileInput.addEventListener('change', (e) => {
+    const f = (e.target as HTMLInputElement).files?.[0];
+    if (f) handleFile(f);
+  });
+
+  ['dragenter', 'dragover'].forEach((ev) =>
+    dz!.addEventListener(ev, (e) => {
+      e.preventDefault();
+      dz!.classList.add('is-over');
+    })
+  );
+  ['dragleave', 'drop'].forEach((ev) =>
+    dz!.addEventListener(ev, (e) => {
+      e.preventDefault();
+      dz!.classList.remove('is-over');
+    })
+  );
+  dz!.addEventListener('drop', (e) => {
+    const f = (e as DragEvent).dataTransfer?.files?.[0];
+    if (f) handleFile(f);
+  });
+
+  // ── 导出 ──
+  function buildMarkdown(): string {
+    const fm = [
+      '---',
+      `title: "${title.value.trim() || '未命名文章'}"`,
+      `pubDate: ${date.value}`,
+    ];
+    if (desc.value.trim()) fm.push(`description: "${desc.value.trim().replace(/"/g, '\\"')}"`);
+    const tg = tags.value.split(',').map((s) => s.trim()).filter(Boolean);
+    if (tg.length) fm.push(`tags: [${tg.map((t) => `"${t}"`).join(', ')}]`);
+    fm.push(`category: ${category.value}`);
+    if (featured.checked) fm.push('featured: true');
+    if (draft.checked) fm.push('draft: true');
+    fm.push('---', '');
+    return fm.join('\n') + bodyValue();
+  }
+
+  function slugify(s: string) {
+    return s.toLowerCase().trim()
+      .replace(/[^\w\u4e00-\u9fa5]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60) || 'post';
+  }
+
+  document.getElementById('btn-export')?.addEventListener('click', () => {
+    const mdText = buildMarkdown();
+    const blob = new Blob([mdText], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${slugify(title.value || 'post')}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    const tip = $('#export-tip');
+    tip!.hidden = false;
+  });
+
+  document.getElementById('btn-copy')?.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(buildMarkdown());
+      const btn = document.getElementById('btn-copy')!;
+      const orig = btn.textContent;
+      btn.textContent = '✓ 已复制全文';
+      setTimeout(() => (btn.textContent = orig), 1800);
+    } catch {
+      alert('复制失败，请手动选择内容复制。');
+    }
+  });
+
+  document.getElementById('btn-preview')?.addEventListener('click', () => {
+    const pv = $('.wp-preview');
+    const ed = $('.wp-editor');
+    const showPv = pv!.style.display === 'none';
+    pv!.style.display = showPv ? '' : 'none';
+    ed!.style.display = showPv ? 'none' : '';
+    document.getElementById('pv-mode')!.textContent = showPv ? '预览模式' : '编辑中';
+  });
+
+  document.getElementById('btn-reset')?.addEventListener('click', () => {
+    if (!confirm('确定清空当前内容？草稿也会被删除。')) return;
+    [title, desc, tags].forEach((el) => (el.value = ''));
+    featured.checked = false;
+    draft.checked = false;
+    if (editor) editor.value = '';
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+      localStorage.removeItem(DRAFTS_KEY);
+    } catch { /* ignore */ }
+    renderPreview();
+  });
+</script>

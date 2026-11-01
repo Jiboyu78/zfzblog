@@ -1,0 +1,66 @@
+# Decap CMS（原 Netlify CMS）配置
+# 访问 /admin/ 即可打开可视化编辑器，保存后自动 commit 到 GitHub 并触发重新构建。
+#
+# 前置条件（一次性配置）：
+#   1. 在 GitHub → Settings → Developer settings → OAuth Apps 创建应用
+#      Authorization callback URL: https://api.netlify.com/auth/done
+#   2. 把 Client ID / Secret 填进下面，或用 Netlify Identity / Cloudflare Workers 代理
+#   3. 在 config.yml 里把 backend.repo 改成 你的用户名/仓库名
+#
+# 不想折腾 OAuth？用站内的 /write/ 写作台，或者直接本地写 md 文件。
+
+backend:
+  name: github
+  repo: YOUR_USERNAME/oiblog
+  branch: main
+  # 若使用自建 OAuth 网关，改成：
+  # base_url: https://your-oauth-worker.example.workers.dev
+
+media_folder: public/img/uploads
+public_folder: /img/uploads
+
+site_url: https://oiblog.example.com
+logo_url: https://oiblog.example.com/favicon.svg
+
+publish_mode: editorial_workflow
+media_library:
+  max_file_size: 5242880   # 5 MB
+
+collections:
+  - name: blog
+    label: 文章
+    label_singular: 文章
+    folder: src/content/blog
+    create: true
+    slug: '{{slug}}'
+    extension: md
+    format: frontmatter
+    preview_path: 'blog/{{slug}}'
+    sortable_fields: [pubDate, title]
+    fields:
+      - { label: 标题, name: title, widget: string }
+      - { label: 摘要, name: description, widget: text, required: false }
+      - { label: 发布日期, name: pubDate, widget: datetime, date_format: 'YYYY-MM-DD', time_format: false }
+      - { label: 更新日期, name: updatedDate, widget: datetime, date_format: 'YYYY-MM-DD', time_format: false, required: false }
+      - label: 标签
+        name: tags
+        widget: list
+        required: false
+        default: []
+        field: { label: 标签, name: tag, widget: string }
+      - label: 分类
+        name: category
+        widget: select
+        default: 随笔
+        options: [OI, AI, 工程, 随笔, 比赛]
+      - { label: 封面图, name: heroImage, widget: image, required: false }
+      - { label: 精选, name: featured, widget: boolean, default: false, required: false }
+      - { label: 草稿, name: draft, widget: boolean, default: false, required: false }
+      - { label: 正文, name: body, widget: markdown }
+
+  - name: pages
+    label: 页面
+    folder: src/pages
+    create: false
+    files:
+      - { label: 关于, name: about, file: about.astro, widget: file }

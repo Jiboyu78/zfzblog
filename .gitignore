@@ -1,0 +1,53 @@
+# 依赖
+node_modules/
+.pnp
+.pnp.js
+
+# 构建产物
+dist/
+.output/
+.vercel/
+.netlify/
+.wrangler/
+
+# Astro 缓存
+.astro/
+node_modules/.vite/
+.vite/
+
+# ── Live2D 模型（重要）──────────────────────────────────
+# Cubism Core 是 Live2D Inc. 的专有软件，禁止再分发
+# 官方样例模型受 Free Material License 约束，禁止随仓库分发
+# → 请自行下载后放到 public/models/，并在此处排除
+public/models/*
+!public/models/.gitkeep
+public/img/uploads/
+
+# 环境变量
+.env
+.env.production
+.env.local
+.env.*.local
+
+# 编辑器 / 系统
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# 日志
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 截图产物（保留少量示例）
+shots/*
+!shots/01-home-dark.png
+!shots/01-home.png
+!shots/03-post-dark.png
+!shots/03-post.png
+!shots/04-write.png
+.box-agent/

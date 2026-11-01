@@ -1,0 +1,251 @@
+---
+/**
+ * 搜索对话框（⌘K / Ctrl+K 唤起）
+ * 数据源：构建期由 Pagefind 生成 dist/pagefind/pagefind.js
+ * 无 JS 时回退为 <form action="/search/"> 的传统搜索页
+ */
+---
+
+<dialog id="search-dialog" class="search-dialog no-print">
+  <div class="sd-head">
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" stroke-linecap="round" />
+    </svg>
+    <input
+      type="search"
+      id="search-input"
+      placeholder="搜索文章标题、标签、正文…"
+      autocomplete="off"
+      spellcheck="false"
+      aria-label="搜索"
+    />
+    <kbd>ESC</kbd>
+  </div>
+  <div id="search-results" class="sd-results">
+    <div class="sd-hint">
+      <p>输入关键词开始搜索</p>
+      <p class="sd-tip">提示：<kbd>↑</kbd> <kbd>↓</kbd> 选择 · <kbd>Enter</kbd> 打开 · <kbd>Esc</kbd> 关闭</p>
+    </div>
+  </div>
+</dialog>
+
+<style>
+  .search-dialog {
+    width: min(640px, calc(100vw - 2rem));
+    max-height: min(70vh, 620px);
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--fg);
+    box-shadow: 0 24px 60px -20px rgb(0 0 0 / 0.3);
+    overflow: hidden;
+  }
+  .search-dialog::backdrop {
+    background: rgb(0 0 0 / 0.35);
+  }
+  .search-dialog[open] { animation: scale-in 0.24s var(--ease-out-expo); }
+
+  .sd-head {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.95rem 1.1rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--fg-mute);
+  }
+  .sd-head input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--fg-strong);
+    font-size: 1.4rem;
+    font-family: inherit;
+  }
+  .sd-head input::placeholder { color: var(--fg-mute); }
+  .sd-head kbd {
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+    padding: 0.15rem 0.4rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xs);
+  }
+
+  .sd-results { overflow-y: auto; max-height: calc(70vh - 58px); padding: 0.4rem 0; }
+  .sd-hint { padding: 2.5rem 1rem; text-align: center; color: var(--fg-mute); font-size: 1.3rem; }
+  .sd-tip { margin-top: 0.6rem; font-size: 1.2rem; opacity: 0.75; }
+  .sd-tip kbd {
+    font-family: var(--font-mono); font-size: 1.1rem;
+    padding: 0.1rem 0.35rem; border: 1px solid var(--border); border-radius: var(--radius-xs);
+  }
+
+  :global(.sr-item) {
+    display: block;
+    padding: 0.85rem 1.2rem;
+    border-bottom: 1px solid var(--border-soft);
+    text-decoration: none;
+    transition: background 0.2s;
+  }
+  :global(.sr-item:hover),
+  :global(.sr-item.is-active) { background: var(--bg-soft); }
+  :global(.sr-title) {
+    display: block;
+    color: var(--fg-strong);
+    font-weight: 700;
+    font-size: 1.45rem;
+    margin-bottom: 0.2rem;
+  }
+  :global(.sr-desc) {
+    display: block;
+    font-size: 1.25rem;
+    color: var(--fg-mute);
+    line-height: 1.7;
+    margin-bottom: 0.35rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  :global(.sr-title mark) {
+    background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+    color: inherit;
+    padding: 0 2px;
+  }
+  :global(.sr-meta) {
+    display: flex; gap: 0.9rem; align-items: center;
+    font-size: 1.15rem; color: var(--fg-mute);
+  }
+  :global(.sr-tag) {
+    color: var(--color-primary);
+  }
+  html.dark :global(.sr-tag) { color: #7fb0e0; }
+  :global(.sr-empty) { padding: 2.5rem 1rem; text-align: center; color: var(--fg-mute); font-size: 1.3rem; }
+</style>
+
+<script>
+  const dialog = document.getElementById('search-dialog') as HTMLDialogElement | null;
+  const input = document.getElementById('search-input') as HTMLInputElement | null;
+  const results = document.getElementById('search-results');
+  let pagefind: any = null;
+  let activeIndex = -1;
+  let current: any[] = [];
+
+  async function ensurePagefind() {
+    if (pagefind) return pagefind;
+    try {
+      const mod = await import(/* @vite-ignore */ '/pagefind/pagefind.js');
+      pagefind = mod.default ?? mod;
+      await pagefind.init?.();
+      return pagefind;
+    } catch (e) {
+      console.warn('[search] Pagefind 索引未找到（开发模式下属正常）', e);
+      return null;
+    }
+  }
+
+  function open() {
+    if (!dialog) return;
+    if (!dialog.open) dialog.showModal();
+    input?.focus();
+    ensurePagefind();
+  }
+
+  document.getElementById('search-open')?.addEventListener('click', open);
+
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      dialog?.open ? dialog.close() : open();
+    }
+  });
+
+  dialog?.addEventListener('close', () => {
+    if (input) input.value = '';
+    if (results) results.innerHTML = '<div class="sd-hint"><p>输入关键词开始搜索</p></div>';
+  });
+
+  // 点击遮罩关闭
+  dialog?.addEventListener('click', (e) => {
+    if (e.target === dialog) dialog.close();
+  });
+
+  function escapeHtml(s: string) {
+    return s.replace(/[&<>"']/g, (c) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' } as any)[c]
+    );
+  }
+
+  function render(list: any[]) {
+    if (!results) return;
+    current = list;
+    activeIndex = -1;
+    if (!list.length) {
+      results.innerHTML = '<div class="sr-empty">没有找到相关内容，换个关键词试试？</div>';
+      return;
+    }
+    results.innerHTML = list
+      .map((r, i) => {
+        // meta.title 来自 data-pagefind-meta="title"，比 excerpt 干净
+        const title = r.meta?.title || r.excerpt || '';
+        const desc = r.meta?.description || '';
+        const tags = Array.isArray(r.meta?.tags) ? r.meta.tags : [];
+        return `
+        <a class="sr-item" href="${r.url}" data-i="${i}">
+          <span class="sr-title">${title}</span>
+          ${desc ? `<span class="sr-desc">${desc}</span>` : ''}
+          <span class="sr-meta">
+            ${r.meta?.category ? `<span class="sr-tag">${r.meta.category}</span>` : ''}
+            ${r.meta?.date ? `<span>${r.meta.date}</span>` : ''}
+            ${tags.slice(0, 3).map((t: string) => `<span class="sr-tag">${t}</span>`).join('')}
+          </span>
+        </a>`;
+      })
+      .join('');
+  }
+
+  let timer = 0;
+  input?.addEventListener('input', () => {
+    clearTimeout(timer);
+    const q = input.value.trim();
+    if (!q) {
+      results!.innerHTML =
+        '<div class="sd-hint"><p>输入关键词开始搜索</p><p class="sd-tip">提示：<kbd>↑</kbd> <kbd>↓</kbd> 选择 · <kbd>Enter</kbd> 打开 · <kbd>Esc</kbd> 关闭</p></div>';
+      return;
+    }
+    timer = window.setTimeout(async () => {
+      const pf = await ensurePagefind();
+      if (!pf) {
+        results!.innerHTML =
+          '<div class="sr-empty">搜索索引尚未生成（构建后可用）。请前往 <a href="/search/">搜索页</a>。</div>';
+        return;
+      }
+      try {
+        const res = await pf.search(q);
+        const list = await Promise.all((res.results || []).slice(0, 20).map((r: any) => r.data()));
+        render(list);
+      } catch (e) {
+        console.warn('[search] 查询失败', e);
+      }
+    }, 220);
+  });
+
+  // 键盘导航
+  dialog?.addEventListener('keydown', (e) => {
+    const items = results?.querySelectorAll('.sr-item') || [];
+    if (!items.length) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      activeIndex = (activeIndex + 1) % items.length;
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      activeIndex = (activeIndex - 1 + items.length) % items.length;
+    } else if (e.key === 'Enter' && activeIndex >= 0) {
+      e.preventDefault();
+      (items[activeIndex] as HTMLAnchorElement).click();
+    }
+    items.forEach((el, i) => el.classList.toggle('is-active', i === activeIndex));
+    (items[activeIndex] as HTMLElement | undefined)?.scrollIntoView({ block: 'nearest' });
+  });
+</script>

@@ -1,0 +1,523 @@
+---
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import GiscusComments from '../../components/comment/GiscusComments.astro';
+import SummaryPanel from '../../components/post/SummaryPanel.astro';
+import { site, features, comments } from '@/config';
+import similaritiesCache from '../../data/cache/similarities.json';
+
+export async function getStaticPaths() {
+  const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
+    (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+  );
+  return posts.map((post, i) => ({
+    params: { id: post.id },
+    props: { post, prev: posts[i + 1], next: posts[i - 1] },
+  }));
+}
+
+const { post, prev, next } = Astro.props;
+const { Content, headings } = await render(post);
+const d = post.data;
+
+const dateStr = d.pubDate.toLocaleDateString('zh-CN', {
+  year: 'numeric', month: 'long', day: 'numeric',
+});
+const updatedStr = d.updatedDate?.toLocaleDateString('zh-CN', {
+  year: 'numeric', month: 'long', day: 'numeric',
+});
+
+// 阅读时长：中文 400 字/分钟，代码块额外折算
+const bodyText = (post.body ?? '').replace(/```[\s\S]*?```/g, ' ');
+const readMinutes = Math.max(
+  1,
+  Math.round((bodyText.match(/[一-龥]/g)?.length ?? 0) / 400 + (bodyText.split(/\s+/).length / 220))
+);
+
+const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
+
+// 相关文章：优先读 R6c 语义相似缓存（TF-IDF 余弦），缺失/不足时回落到同标签重合度排序
+const allPosts = (await getCollection('blog', ({ data }) => !data.draft)).filter(
+  (p) => p.id !== post.id
+);
+const byId = new Map(allPosts.map((p) => [p.id, p]));
+const simIds = (similaritiesCache as Record<string, { id: string; score: number }[]>)[post.id] ?? [];
+const simPosts = simIds
+  .map((s) => byId.get(s.id))
+  .filter((p): p is NonNullable<typeof p> => Boolean(p));
+const tagRelated = allPosts
+  .map((p) => ({ p, score: p.data.tags.filter((t) => d.tags.includes(t)).length }))
+  .filter((x) => x.score > 0)
+  .sort((a, b) => b.score - a.score)
+  .map((x) => x.p);
+const seen = new Set<string>();
+const related = [...simPosts, ...tagRelated]
+  .filter((p) => {
+    if (seen.has(p.id)) return false;
+    seen.add(p.id);
+    return true;
+  })
+  .slice(0, 5);
+---
+
+<BaseLayout
+  title={d.title}
+  description={d.description}
+  kind="post"
+  ogImage={`/og/${post.id}.png`}
+>
+  <!-- ═══ 顶部通栏封面 ═══ -->
+  <header class="post-banner">
+    <div class="pb-bg"></div>
+    <div class="pb-overlay"></div>
+    <div class="pb-content">
+      <div class="pb-meta">
+        <span>{dateStr}</span>
+        <span class="pb-dot">·</span>
+        <a href={`/archive/${d.category}/`}>{d.category}</a>
+        <span class="pb-dot">·</span>
+        <span>{readMinutes} 分钟阅读</span>
+      </div>
+      <h1 class="pb-title" data-pagefind-meta="title">{d.title}</h1>
+      {d.description && <p class="pb-desc" data-pagefind-meta="description">{d.description}</p>}
+    </div>
+  </header>
+
+  <div class="post-layout">
+    <!-- ═══ 正文 ═══ -->
+    <article class="post-main">
+      <!-- R6b · AI 摘要面板（feature 开关控制） -->
+      {features.aiSummary && (
+        <div class="no-print">
+          <SummaryPanel postId={post.id} body={post.body ?? ''} />
+        </div>
+      )}
+      <div class="prose" data-pagefind-body>
+        <Content />
+      </div>
+
+      {d.updatedDate && (
+        <div class="post-updated">最后更新于 {updatedStr}</div>
+      )}
+
+      <div class="post-tags">
+        {d.tags.map((t) => (
+          <a href={`/tags/${encodeURIComponent(t)}/`} class="tag" data-pagefind-meta="tags">#{t}</a>
+        ))}
+      </div>
+
+      <div class="post-license no-print">
+        <strong>© {site.author}</strong> · 本文采用
+        <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a>
+        许可协议，转载请注明出处。
+      </div>
+
+      <!-- 上下篇 -->
+      <nav class="post-nav no-print">
+        {prev ? (
+          <a href={`/blog/${prev.id}/`} class="pn-item">
+            <span class="pn-label">← 上一篇</span>
+            <span class="pn-title">{prev.data.title}</span>
+          </a>
+        ) : <span></span>}
+        {next ? (
+          <a href={`/blog/${next.id}/`} class="pn-item is-next">
+            <span class="pn-label">下一篇 →</span>
+            <span class="pn-title">{next.data.title}</span>
+          </a>
+        ) : <span></span>}
+      </nav>
+
+      <!-- 评论区（Giscus，feature + provider 双开关，repo 占位值不渲染） -->
+      {features.comments && comments.provider !== 'none' && <GiscusComments />}
+    </article>
+
+    <!-- ═══ 右侧栏 ═══ -->
+    <aside class="side-col no-print">
+      {toc.length > 0 && (
+        <nav class="panel toc" aria-label="目录">
+          <div class="toc-title">目录</div>
+          <ul>
+            {toc.map((h) => (
+              <li class={`toc-h${h.depth}`}>
+                <a href={`#${h.slug}`} data-toc-link={h.slug}>{h.text}</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
+
+      <div class="panel">
+        <div class="sc-title">本文信息</div>
+        <dl class="meta-list">
+          <div><dt>发布</dt><dd>{dateStr}</dd></div>
+          {d.updatedDate && <div><dt>更新</dt><dd>{updatedStr}</dd></div>}
+          <div><dt>分类</dt><dd>{d.category}</dd></div>
+          <div><dt>阅读</dt><dd>{readMinutes} min</dd></div>
+        </dl>
+      </div>
+
+      {related.length > 0 && (
+        <div class="panel">
+          <div class="sc-title">相关文章</div>
+          <ul class="rel-list">
+            {related.map((p) => (
+              <li><a href={`/blog/${p.id}/`}>{p.data.title}</a></li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <button id="copy-link" class="panel copy-btn-2">
+        <span>🔗</span> 复制本文链接
+      </button>
+    </aside>
+  </div>
+</BaseLayout>
+
+<style>
+  /* ═══ 顶部通栏封面 ═══ */
+  .post-banner {
+    position: relative;
+    margin: 0 -1.5rem 3rem;
+    padding: 5rem 1.5rem 3.5rem;
+    min-height: 38vh;
+    display: flex;
+    align-items: flex-end;
+    overflow: hidden;
+  }
+  .pb-bg {
+    position: absolute;
+    inset: 0;
+    background-image: url('/img/bg/hero.svg');
+    background-size: cover;
+    background-position: center 40%;
+    filter: blur(1px);
+  }
+  .pb-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.5) 0%,
+      rgba(255, 255, 255, 0.25) 40%,
+      rgba(255, 255, 255, 0.88) 100%
+    );
+  }
+  html.dark .pb-overlay {
+    background: linear-gradient(
+      180deg,
+      rgba(20, 22, 26, 0.6) 0%,
+      rgba(20, 22, 26, 0.45) 40%,
+      rgba(20, 22, 26, 0.92) 100%
+    );
+  }
+  .pb-content {
+    position: relative;
+    z-index: 2;
+    max-width: 950px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  .pb-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    font-size: 1.3rem;
+    color: var(--fg-mute);
+    margin-bottom: 1.2rem;
+    flex-wrap: wrap;
+  }
+  .pb-dot { opacity: 0.4; }
+  .pb-title {
+    font-size: 3.4rem;
+    font-weight: 700;
+    line-height: 1.35;
+    letter-spacing: -1px;
+    color: var(--fg-strong);
+    margin-bottom: 1rem;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+  .pb-desc {
+    font-size: 1.5rem;
+    line-height: 1.85;
+    color: var(--fg);
+    max-width: 70ch;
+    margin: 0;
+    text-shadow: 0 1px 3px rgba(255, 255, 255, 0.6);
+  }
+  html.dark .pb-desc { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); }
+
+  /* ═══ 布局 ═══ */
+  .post-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 260px;
+    gap: 3rem;
+    max-width: 950px;
+    margin: 0 auto;
+    align-items: start;
+  }
+  .post-main { min-width: 0; }
+
+  /* ═══ 侧栏 ═══ */
+  .side-col {
+    position: sticky;
+    top: 6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .panel { padding: 1rem 1.1rem; }
+  .toc { max-height: calc(100vh - 9rem); overflow-y: auto; }
+  .toc-title, .sc-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--fg-strong);
+    margin-bottom: 0.8rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .toc ul { list-style: none; display: flex; flex-direction: column; gap: 0.1rem; }
+  .toc a {
+    display: block;
+    padding: 0.3rem 0.5rem;
+    border-left: 2px solid transparent;
+    font-size: 1.25rem;
+    line-height: 1.5;
+    color: var(--fg-mute);
+    transition: all 0.25s;
+  }
+  .toc a:hover { color: var(--color-primary); border-left-color: var(--border); }
+  .toc a.is-active {
+    color: var(--color-primary);
+    border-left-color: var(--color-primary);
+    font-weight: 700;
+  }
+  .toc-h3 a { padding-left: 1.4rem; font-size: 1.15rem; }
+
+  .meta-list { margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+  .meta-list > div { display: flex; justify-content: space-between; font-size: 1.25rem; }
+  .meta-list dt { color: var(--fg-mute); margin: 0; }
+  .meta-list dd { color: var(--fg-strong); margin: 0; font-family: var(--font-mono); font-size: 1.15rem; }
+
+  .rel-list { list-style: none; display: flex; flex-direction: column; gap: 0.55rem; }
+  .rel-list a {
+    font-size: 1.25rem;
+    line-height: 1.55;
+    color: var(--fg);
+    display: block;
+    transition: color 0.25s, padding-left 0.25s;
+  }
+  .rel-list a:hover { color: var(--color-primary); padding-left: 0.3rem; }
+
+  .copy-btn-2 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    font-size: 1.25rem;
+    color: var(--fg-mute);
+    transition: all 0.25s;
+  }
+  .copy-btn-2:hover { color: var(--color-primary); border-color: var(--color-primary); }
+
+  /* ═══ 文末 ═══ */
+  .post-updated {
+    margin-top: 3rem;
+    padding: 0.7rem 1rem;
+    border-left: 2px solid var(--color-primary-light);
+    background: var(--bg-soft);
+    font-size: 1.3rem;
+    color: var(--fg-mute);
+  }
+  .post-tags { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1.5rem; }
+  .post-license {
+    margin-top: 2rem;
+    padding: 1rem 1.2rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    font-size: 1.25rem;
+    line-height: 1.8;
+    color: var(--fg-mute);
+    background: var(--bg-soft);
+  }
+  .post-license strong { color: var(--fg-strong); }
+
+  .post-nav {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.2rem;
+    margin-top: 1.5rem;
+  }
+  .pn-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 1rem 1.2rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    transition: all 0.3s var(--ease-out);
+  }
+  .pn-item:hover {
+    border-color: var(--color-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px -10px rgba(92, 142, 198, 0.5);
+  }
+  .pn-item.is-next { text-align: right; }
+  .pn-label { font-size: 1.2rem; color: var(--fg-mute); }
+  .pn-title { font-size: 1.35rem; color: var(--fg-strong); font-weight: 700; line-height: 1.5; }
+  .pn-item:hover .pn-title { color: var(--color-primary); }
+
+  .comments {
+    margin-top: 1.5rem;
+    padding: 1.3rem 1.5rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+  }
+  .cm-title { font-size: 1.5rem; margin: 0 0 0.9rem; }
+  .cm-body { font-size: 1.3rem; line-height: 1.85; color: var(--fg-mute); }
+  .cm-body ul { padding-left: 1.8em; margin: 0.5rem 0 0; }
+
+  @media (max-width: 1000px) {
+    .post-layout { grid-template-columns: 1fr; }
+    .side-col { position: static; flex-direction: row; flex-wrap: wrap; }
+    .side-col > * { flex: 1 1 240px; }
+    .pb-title { font-size: 2.6rem; }
+  }
+  @media (max-width: 560px) {
+    .post-banner { padding: 3rem 1rem 2rem; min-height: 30vh; }
+    .pb-title { font-size: 2rem; }
+    .post-nav { grid-template-columns: 1fr; }
+  }
+</style>
+
+<script>
+  // TOC 高亮
+  const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('[data-toc-link]'));
+  if (links.length) {
+    const targets = links
+      .map((l) => document.getElementById(l.dataset.tocLink!))
+      .filter(Boolean) as HTMLElement[];
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (!e.isIntersecting) return;
+          links.forEach((l) =>
+            l.classList.toggle('is-active', l.dataset.tocLink === e.target.id)
+          );
+        });
+      },
+      { rootMargin: '-70px 0px -75% 0px', threshold: 0 }
+    );
+    targets.forEach((t) => io.observe(t));
+  }
+
+  // 复制链接
+  document.getElementById('copy-link')?.addEventListener('click', async () => {
+    const btn = document.getElementById('copy-link')!;
+    const original = btn.innerHTML;
+    try {
+      await navigator.clipboard.writeText(location.href);
+      btn.innerHTML = '<span>✓</span> 已复制';
+    } catch {
+      btn.innerHTML = '<span>✗</span> 复制失败';
+    }
+    setTimeout(() => (btn.innerHTML = original), 1800);
+  });
+
+  /* ═══ R4.7 代码块工具栏 ═══ */
+  document.querySelectorAll<HTMLElement>('.prose pre').forEach((pre) => {
+    if (pre.querySelector('.code-toolbar')) return;
+    const code = pre.querySelector('code');
+    const lang =
+      (code?.className.match(/language-([\w-]+)/)?.[1]) ||
+      pre.getAttribute('data-language') || 'code';
+    const bar = document.createElement('div');
+    bar.className = 'code-toolbar';
+    bar.innerHTML =
+      `<span class="ct-lang">${lang}</span>` +
+      `<button type="button" class="ct-btn" data-act="copy">复制</button>` +
+      `<button type="button" class="ct-btn" data-act="fullscreen">全屏</button>`;
+    pre.style.position = 'relative';
+    pre.prepend(bar);
+    bar.querySelector('[data-act="copy"]')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget as HTMLButtonElement;
+      try {
+        await navigator.clipboard.writeText(code?.innerText ?? pre.innerText);
+        btn.textContent = '已复制';
+      } catch { btn.textContent = '失败'; }
+      setTimeout(() => (btn.textContent = '复制'), 1600);
+    });
+    bar.querySelector('[data-act="fullscreen"]')?.addEventListener('click', () => {
+      pre.classList.toggle('is-fullscreen');
+    });
+  });
+
+  /* ═══ R4 剧透展开 ═══ */
+  document.querySelectorAll<HTMLElement>('.spoiler').forEach((sp) => {
+    const toggle = () => sp.classList.toggle('is-open');
+    sp.addEventListener('click', toggle);
+    sp.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+    });
+  });
+
+  /* ═══ R4.5 答题块判分 ═══ */
+  document.querySelectorAll<HTMLElement>('.quiz').forEach((root) => {
+    let data: { question: string; options: string[]; answer: number[]; explanation?: string }[] = [];
+    try {
+      data = JSON.parse(atob(root.dataset.quiz || ''));
+    } catch { return; }
+    root.querySelectorAll<HTMLElement>('.quiz-option').forEach((opt) => {
+      opt.addEventListener('click', () => {
+        const qi = Number(opt.dataset.qi), oi = Number(opt.dataset.oi);
+        const q = data[qi];
+        if (!q) return;
+        const fb = root.querySelector<HTMLElement>(`.quiz-question[data-qi="${qi}"] .quiz-feedback`);
+        const correct = q.answer.includes(oi);
+        opt.classList.add(correct ? 'is-correct' : 'is-wrong');
+        if (fb) {
+          fb.hidden = false;
+          fb.className = `quiz-feedback ${correct ? 'is-right' : 'is-bad'}`;
+          fb.textContent = (correct ? '✓ 回答正确。' : '✗ 回答错误。') + (q.explanation ?? '');
+        }
+      });
+    });
+  });
+
+  /* ═══ R4.6 加密块解密（防君子不防小人） ═══ */
+  document.querySelectorAll<HTMLElement>('.encrypted').forEach((box) => {
+    const payload = box.dataset.encryptedPayload || '';
+    const input = box.querySelector<HTMLInputElement>('.enc-input');
+    const btn = box.querySelector<HTMLButtonElement>('.enc-btn');
+    const err = box.querySelector<HTMLElement>('.enc-error');
+    async function decrypt() {
+      if (!input) return;
+      try {
+        const raw = Uint8Array.from(atob(payload), (c) => c.charCodeAt(0));
+        const salt = raw.slice(0, 16), iv = raw.slice(16, 28);
+        const ct = raw.slice(28, raw.length - 16), tag = raw.slice(raw.length - 16);
+        const pw = new TextEncoder().encode(input.value);
+        const hashBuf = await crypto.subtle.digest(
+          'SHA-256',
+          new Uint8Array([...salt, ...pw]) as BufferSource
+        );
+        const key = await crypto.subtle.importKey('raw', hashBuf, 'AES-GCM', false, ['decrypt']);
+        const plain = await crypto.subtle.decrypt(
+          { name: 'AES-GCM', iv: iv as BufferSource, tagLength: 128 },
+          key,
+          new Uint8Array([...ct, ...tag]) as BufferSource
+        );
+        const html = new TextDecoder().decode(plain);
+        box.innerHTML = `<div class="enc-open">${html}</div>`;
+      } catch {
+        if (err) err.textContent = '密码错误';
+      }
+    }
+    btn?.addEventListener('click', decrypt);
+    input?.addEventListener('keydown', (e) => { if (e.key === 'Enter') decrypt(); });
+  });
+</script>

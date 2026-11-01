@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 340">
+  <style>
+    .s { fill: none; stroke: #5c8ec6; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+    .t { fill: none; stroke: #3a4145; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+    .a { fill: none; stroke: #807dd4; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+    .f { fill: #fbfbfb; }
+  </style>
+
+  <!-- 头发：等宽线稿的块面 -->
+  <path class="s f" d="M100 26c-36 0-56 26-56 60 0 24 5 44 12 58l12-8c-6-12-9-26-9-40 0-8 2-14 5-18h72c3 4 5 10 5 18 0 14-3 28-9 40l12 8c7-14 12-34 12-58 0-34-20-60-56-60z"/>
+  <path class="s f" d="M62 92c0-32 16-50 38-50s38 18 38 50c-9-11-19-17-30-17-6 9-17 13-27 13-9 0-15-4-19 4z"/>
+
+  <!-- 脸 -->
+  <ellipse class="t f" cx="100" cy="100" rx="37" ry="41"/>
+
+  <!-- 眼睛：等宽风的简单线条 -->
+  <path class="t" d="M78 100h12M110 100h12"/>
+  <path class="a" d="M84 108h4M116 108h4"/>
+
+  <!-- 腮红（点状） -->
+  <circle cx="72" cy="116" r="3" fill="#d83b64" opacity=".35"/>
+  <circle cx="128" cy="116" r="3" fill="#d83b64" opacity=".35"/>
+
+  <!-- 嘴 -->
+  <path class="t" d="M95 124q5 5 10 0"/>
+
+  <!-- 身体 -->
+  <path class="s f" d="M100 142c-31 0-48 17-52 42l-6 60h116l-6-60c-4-25-21-42-52-42z"/>
+  <path class="s" d="M78 150c4 13 40 13 44 0"/>
+  <path class="a" d="M70 196h60"/>
+
+  <!-- 手臂 -->
+  <path class="t f" d="M56 190c-6 23-4 44 2 60l13-4c-5-15-5-33 0-47z"/>
+  <path class="t f" d="M144 190c6 23 4 44-2 60l-13-4c5-15 5-33 0-47z"/>
+
+  <!-- 头顶小天线（代码符号） -->
+  <path class="a" d="M100 26V14"/>
+  <circle class="a" cx="100" cy="10" r="4" fill="#fff"/>
+</svg>

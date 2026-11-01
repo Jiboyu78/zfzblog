@@ -1,0 +1,48 @@
+---
+/**
+ * R6b · 文章页顶部「AI 摘要」可折叠面板
+ *
+ * 摘要来源优先级：
+ *   1. src/data/cache/summaries.json（构建期抽取式生成，key = md5(正文)）
+ *   2. 回落：剥离后的首段前 120 字
+ * 面板默认展开，可点击标题折叠；无正文内容时不渲染。
+ */
+import { createHash } from 'node:crypto';
+import summariesCache from '../../data/cache/summaries.json';
+import { stripMarkdown } from '../../lib/summaries';
+
+interface Props {
+  postId: string;
+  body: string;
+}
+
+const { body } = Astro.props;
+
+let summary = '';
+try {
+  const key = createHash('md5').update(body ?? '').digest('hex');
+  summary = (summariesCache as Record<string, { summary?: string }>)[key]?.summary ?? '';
+} catch {
+  summary = '';
+}
+if (!summary) {
+  try {
+    const plain = stripMarkdown(body ?? '');
+    const firstPara = plain.split(/\n+/).find((p) => p.trim().length > 0) ?? plain;
+    summary = firstPara.trim().slice(0, 120);
+    if (firstPara.trim().length > 120) summary += '…';
+  } catch {
+    summary = '';
+  }
+}
+---
+
+{summary && (
+  <details class="summary-panel" open>
+    <summary class="sp-head">
+      <span class="sp-badge">AI 摘要</span>
+      <span class="sp-toggle" aria-hidden="true"></span>
+    </summary>
+    <p class="sp-body">{summary}</p>
+  </details>
+)}

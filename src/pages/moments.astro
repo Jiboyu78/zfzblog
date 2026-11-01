@@ -1,0 +1,24 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import MomentsTimeline from '../components/moments/MomentsTimeline.astro';
+import { features } from '@/config';
+
+if (!features.moments && import.meta.env.PROD) {
+  return Astro.redirect('/404');
+}
+---
+
+<BaseLayout
+  title="动态"
+  description="零碎的日常与想法，不一定成文。"
+  kind="page"
+>
+  <header class="page-head">
+    <h1 class="page-title">动态</h1>
+    <p class="page-sub">零碎的日常与想法，不一定成文。改 JSON → 重新构建即可发布。</p>
+  </header>
+
+  <div class="list-wrap">
+    <MomentsTimeline />
+  </div>
+</BaseLayout>

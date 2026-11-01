@@ -1,0 +1,21 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import TagCloud from '../../components/TagCloud.astro';
+
+const posts = await getCollection('blog', ({ data }) => !data.draft);
+const tagMap = new Map<string, number>();
+posts.forEach((p) => p.data.tags.forEach((t) => tagMap.set(t, (tagMap.get(t) || 0) + 1)));
+const tags = [...tagMap.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+---
+
+<BaseLayout title="标签" kind="list">
+  <header class="page-head">
+    <h1 class="page-title">标签</h1>
+    <p class="page-sub">共 {tags.length} 个标签</p>
+  </header>
+
+  <div class="list-wrap reveal">
+    <TagCloud tags={tags} />
+  </div>
+</BaseLayout>

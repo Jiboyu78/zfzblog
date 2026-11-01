@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="图片占位">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f3e7ea"/>
+      <stop offset="1" stop-color="#e9d3da"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#e95469" stop-opacity=".9"/>
+      <stop offset="1" stop-color="#ec8c69" stop-opacity=".9"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#g)"/>
+  <!-- 网格 -->
+  <g stroke="#d9bcc4" stroke-width="1" opacity=".5">
+    <path d="M0 157.5h1200M0 315h1200M0 472.5h1200M300 0v630M600 0v630M900 0v630"/>
+  </g>
+  <!-- 中心图像图标 -->
+  <g transform="translate(600 285)" fill="none" stroke="#b98a96" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" opacity=".85">
+    <rect x="-130" y="-105" width="260" height="210" rx="18"/>
+    <circle cx="-52" cy="-40" r="26"/>
+    <path d="M-130 65 L-40 -25 L20 40 L70 -10 L130 65"/>
+  </g>
+  <!-- 文案 -->
+  <text x="600" y="470" font-family="ui-monospace, 'Maple Mono', Menlo, monospace" font-size="34" fill="#a06b78" text-anchor="middle" letter-spacing="6">IMAGE PLACEHOLDER</text>
+  <text x="600" y="512" font-family="ui-monospace, 'Maple Mono', Menlo, monospace" font-size="20" fill="#bd93a0" text-anchor="middle" letter-spacing="3">图片待替换 · 1200 × 630</text>
+  <rect x="520" y="548" width="160" height="10" rx="5" fill="url(#g2)"/>
+</svg>

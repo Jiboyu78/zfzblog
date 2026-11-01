@@ -1,0 +1,169 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { site, social } from '@/config';
+
+const skills = [
+  { group: '算法竞赛', items: ['C++17 / 20', '数据结构', '图论与树', '动态规划', '字符串算法', '数论'] },
+  { group: '多模态', items: ['Qwen3-VL', 'LoRA / PEFT', '数据合成', 'PyTorch', '评测与清洗'] },
+  { group: '前端', items: ['Astro', 'Tailwind CSS', 'TypeScript', 'PixiJS', 'Canvas / WebGL'] },
+  { group: '工程', items: ['Git', 'Linux', 'Docker', 'CI/CD', '性能调优'] },
+];
+
+const timeline = [
+  { year: '2026', items: ['开始做「看图猜谐音梗」的多模态微调研究', '博客从 Hexo 迁移到 Astro 7', '开始维护这个站点'] },
+  { year: '2025', items: ['首次参加 CSP-S', '开始系统刷题与整理题解'] },
+  { year: '2024', items: ['开始接触 OI 与算法竞赛'] },
+];
+---
+
+<BaseLayout title="关于" kind="page">
+  <div class="about">
+    <header class="ab-head reveal">
+      <div class="avatar">
+        <span class="avatar-text">Y</span>
+        <span class="avatar-ring"></span>
+      </div>
+      <div class="ab-intro">
+        <h1 class="ab-title">{site.author}</h1>
+        <p class="ab-role">{site.subtitle}</p>
+        <p class="ab-desc">
+          一个喜欢把「踩过的坑」写下来的人。这里既放算法题解，也放多模态实验的记录，
+          和一些工程上踩过的雷。
+        </p>
+        <div class="ab-links">
+          <a href={social.email.url} class="ab-link">📮 {site.author}</a>
+          <a href={social.github.url} class="ab-link" target="_blank" rel="noopener">💻 GitHub</a>
+        </div>
+      </div>
+    </header>
+
+    <section class="ab-sec reveal">
+      <h2 class="ab-h2">技能</h2>
+      <div class="skill-grid">
+        {skills.map((g) => (
+          <div class="skill-card">
+            <h3 class="sc-head">{g.group}</h3>
+            <ul class="sc-list">
+              {g.items.map((i) => <li>{i}</li>)}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section class="ab-sec reveal">
+      <h2 class="ab-h2">时间线</h2>
+      <div class="tl">
+        {timeline.map((t) => (
+          <div class="tl-item">
+            <div class="tl-year">{t.year}</div>
+            <div class="tl-body">
+              {t.items.map((i) => <div class="tl-entry">{i}</div>)}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section class="ab-sec reveal">
+      <h2 class="ab-h2">这个站点</h2>
+      <div class="stack">
+        <p>技术栈：Astro 7 + Tailwind CSS v4 + MDX，搜索用 Pagefind，看板娘是 Live2D。</p>
+        <p>所有动效都是手写的 CSS 与原生 JS，没有引入 GSAP 这类重量级动画库。</p>
+        <p>文章全部用 Markdown 写，放在仓库里，用 Git 管理版本。</p>
+        <ul class="stack-list">
+          <li>想写文章？去 <a href="/write/">写作台</a>，或者直接新建一个 md 文件</li>
+          <li>想订阅？<a href="/rss.xml">RSS</a> 是最省事的</li>
+          <li>想看看源码？<a href={social.github.url} target="_blank" rel="noopener">GitHub 仓库</a></li>
+        </ul>
+      </div>
+    </section>
+  </div>
+</BaseLayout>
+
+<style>
+  .about { max-width: 950px; margin: 0 auto; padding: 3rem 1.5rem 4rem; }
+  .ab-head {
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+    margin-bottom: 3rem;
+    padding-bottom: 2.4rem;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .avatar {
+    width: 84px; height: 84px;
+    display: grid; place-items: center;
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-sm);
+    flex-shrink: 0;
+    background: var(--bg);
+  }
+  .avatar-text {
+    font-size: 3rem;
+    font-weight: 700;
+    color: var(--color-primary);
+  }
+  .ab-title { font-size: 3rem; margin: 0 0 0.3rem; letter-spacing: -1px; }
+  .ab-role { color: var(--color-primary); font-size: 1.35rem; margin: 0 0 0.8rem; }
+  .ab-desc { color: var(--fg-mute); line-height: 1.9; margin: 0 0 1.1rem; max-width: 62ch; font-size: 1.35rem; }
+  .ab-links { display: flex; gap: 1.4rem; flex-wrap: wrap; }
+  .ab-link {
+    font-size: 1.3rem;
+    color: var(--fg);
+    text-decoration: none;
+    padding-bottom: 0.2rem;
+    border-bottom: 1px solid var(--border);
+    transition: color 0.25s, border-color 0.25s;
+  }
+  .ab-link:hover { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+
+  .ab-sec { margin-bottom: 3rem; }
+  .ab-h2 {
+    font-size: 2rem;
+    margin: 0 0 1.2rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .skill-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.6rem; }
+  .skill-card { padding-right: 1rem; }
+  .sc-head { font-size: 1.35rem; margin: 0 0 0.7rem; color: var(--color-primary); }
+  .sc-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+  .sc-list li { font-size: 1.3rem; color: var(--fg-mute); padding-left: 1rem; position: relative; }
+  .sc-list li::before {
+    content: '·'; position: absolute; left: 0; color: var(--color-primary);
+  }
+
+  .tl { position: relative; padding-left: 1.8rem; }
+  .tl::before {
+    content: ''; position: absolute; left: 4px; top: 6px; bottom: 6px;
+    width: 1px; background: var(--border);
+  }
+  .tl-item { display: flex; gap: 1.4rem; margin-bottom: 1.5rem; }
+  .tl-year {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    color: var(--color-primary);
+    flex-shrink: 0;
+    width: 4em;
+    position: relative;
+  }
+  .tl-year::before {
+    content: ''; position: absolute; left: -1.8rem; top: 0.45em;
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--bg);
+    border: 1px solid var(--color-primary);
+  }
+  .tl-body { display: flex; flex-direction: column; gap: 0.4rem; }
+  .tl-entry { font-size: 1.35rem; color: var(--fg); line-height: 1.8; }
+
+  .stack { padding: 1.6rem 0 0; border-top: 1px solid var(--border); }
+  .stack p { margin: 0 0 0.8rem; color: var(--fg); font-size: 1.35rem; line-height: 1.9; }
+  .stack-list { margin: 0.8rem 0 0; padding-left: 1.4em; color: var(--fg-mute); font-size: 1.3rem; line-height: 1.95; }
+  .stack a { color: var(--color-primary); }
+
+  @media (max-width: 900px) { .skill-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 520px) { .skill-grid { grid-template-columns: 1fr; } }
+</style>

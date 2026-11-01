@@ -1,0 +1,115 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const friends = [
+  { name: '小 A', url: 'https://example.com/a', desc: '图论选手，CF 2500', tags: ['OI', 'CF'] },
+  { name: '小 B', url: 'https://example.com/b', desc: '做 CV 的同学', tags: ['AI'] },
+  { name: '小 C', url: 'https://example.com/c', desc: '前端工程师，写 Vue 的', tags: ['前端'] },
+  { name: '小 D', url: 'https://example.com/d', desc: '区间 DP 专项', tags: ['OI'] },
+  { name: '小 E', url: 'https://example.com/e', desc: '写题解很细', tags: ['OI', '博客'] },
+  { name: '小 F', url: 'https://example.com/f', desc: '折腾 Live2D', tags: ['Live2D'] },
+];
+
+// 注意：直接把 JSON 写进 <code> 会被 Astro 当成表达式解析，用 set:html 注入
+const applyTemplate = `{
+  "name": "你的站点名",
+  "url": "https://your.site",
+  "description": "一句话介绍",
+  "avatar": "https://your.site/avatar.png"
+}`;
+---
+
+<BaseLayout title="友链" kind="list">
+  <header class="page-head">
+    <h1 class="page-title">友情链接</h1>
+    <p class="page-sub">互相交换链接，也算一种互联网上的握手。</p>
+  </header>
+
+  <div class="list-wrap">
+    <div class="fl-tip reveal">
+      <strong>交换友链请留言或邮件</strong>
+      <p>要求：个人博客、内容与算法/技术相关、站点可正常访问。我会回访并加上你的链接。</p>
+    </div>
+
+    <div class="friend-grid">
+      {friends.map((f, i) => (
+        <a href={f.url} target="_blank" rel="noopener" class="friend-card reveal">
+          <div class="fc-top">
+            <span class="fc-avatar">{f.name.slice(-1)}</span>
+            <div class="fc-info">
+              <div class="fc-name">{f.name}</div>
+              <div class="fc-desc">{f.desc}</div>
+            </div>
+          </div>
+          <div class="fc-tags">
+            {f.tags.map((t) => <span class="fc-tag">#{t}</span>)}
+          </div>
+        </a>
+      ))}
+    </div>
+
+    <section class="apply reveal">
+      <h2 class="ap-title">申请友链</h2>
+      <pre class="ap-code"><code set:html={applyTemplate}></code></pre>
+      <p class="ap-hint">按这个格式发我，我直接加。</p>
+    </section>
+  </div>
+</BaseLayout>
+
+<style>
+  .fl-tip {
+    padding: 1.2rem 0;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .fl-tip strong { color: var(--fg-strong); font-size: 1.35rem; }
+  .fl-tip p { margin: 0.4rem 0 0; color: var(--fg-mute); font-size: 1.3rem; line-height: 1.8; }
+
+  .friend-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+  .friend-card {
+    display: block;
+    padding: 1.2rem 0;
+    border-bottom: 1px solid var(--border);
+    text-decoration: none;
+    transition: background 0.25s;
+  }
+  .friend-card:hover { background: var(--bg-soft); }
+  .fc-top { display: flex; align-items: center; gap: 0.9rem; margin-bottom: 0.7rem; }
+  .fc-avatar {
+    width: 38px; height: 38px; flex-shrink: 0;
+    display: grid; place-items: center;
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-sm);
+    font-weight: 700;
+    font-size: 1.4rem;
+    color: var(--color-primary);
+  }
+  .fc-name { font-weight: 700; color: var(--fg-strong); font-size: 1.4rem; }
+  .fc-desc { font-size: 1.25rem; color: var(--fg-mute); margin-top: 0.15rem; }
+  .fc-tags { display: flex; gap: 0.8rem; flex-wrap: wrap; }
+  .fc-tag {
+    font-size: 1.15rem;
+    color: var(--fg-mute);
+  }
+
+  .apply { margin-top: 2.4rem; padding-top: 1.6rem; border-top: 1px solid var(--border); }
+  .ap-title { font-size: 1.7rem; margin: 0 0 1rem; }
+  .ap-code {
+    margin: 0;
+    padding: 1.1rem 1.3rem;
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow-x: auto;
+    font-size: 1.25rem;
+    line-height: 1.8;
+  }
+  .ap-hint { margin: 0.7rem 0 0; font-size: 1.25rem; color: var(--fg-mute); }
+
+  @media (max-width: 900px) { .friend-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .friend-grid { grid-template-columns: 1fr; } }
+</style>

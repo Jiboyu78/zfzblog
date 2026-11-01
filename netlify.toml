@@ -1,0 +1,18 @@
+# Cloudflare Pages / Netlify / Vercel 构建配置
+# 大多数平台会自动识别 Astro 预设；这里的配置是给手动设置用的。
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22.23.4"
+
+# Cloudflare Pages
+[build]
+  command = "npm run build"
+  pages_build_output_dir = "dist"
+
+# Netlify
+[[plugins]]
+  package = "@astrojs/netlify"

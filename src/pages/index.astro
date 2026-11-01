@@ -1,0 +1,183 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import IntroHero from '../components/IntroHero.astro';
+import PostCard from '../components/PostCard.astro';
+import { site, features, activeCategories } from '@/config';
+
+const allPosts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+);
+
+const featured = allPosts.filter((p) => p.data.featured).slice(0, 2);
+const recent = allPosts.filter((p) => !p.data.featured).slice(0, 6);
+const cats = activeCategories(allPosts);
+const totalWords = allPosts.reduce((n, p) => n + (p.body?.length ?? 0), 0);
+const tagCount = new Set(allPosts.flatMap((p) => p.data.tags)).size;
+---
+
+<BaseLayout kind="home">
+  <!-- ═══ 引导页：插画头图 + 中央白卡 ═══ -->
+  <IntroHero />
+
+  <!-- ═══ 站点统计 ═══ -->
+  {
+    features.stats && (
+      <section class="stats-strip">
+        <div class="container-page stats-inner">
+          <div class="stat">
+            <b data-count={allPosts.length}>0</b>
+            <span>篇文章</span>
+          </div>
+          <div class="stat">
+            <b data-count={totalWords > 9999 ? Math.round(totalWords / 10000) : totalWords}>0</b>
+            <span>万字</span>
+          </div>
+          <div class="stat">
+            <b data-count={tagCount}>0</b>
+            <span>个标签</span>
+          </div>
+          <div class="stat">
+            <b>{site.startYear}</b>
+            <span>建站</span>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  <div class="container-page home-body">
+    <!-- ═══ 精选 ═══ -->
+    {
+      featured.length > 0 && (
+        <section class="block">
+          <h2 class="block-title">
+            <span class="bt-mark">✦</span> 精选文章
+            <span class="bt-line" />
+          </h2>
+          <div class="featured-grid">
+            {featured.map((p, i) => (
+              <PostCard post={p} index={i} compact />
+            ))}
+          </div>
+        </section>
+      )
+    }
+
+    <!-- ═══ 最新文章 ═══ -->
+    <section class="block">
+      <h2 class="block-title">
+        <span class="bt-mark">❋</span> 最新文章
+        <span class="bt-line" />
+        <a href="/blog/" class="bt-more">全部 →</a>
+      </h2>
+
+      <nav class="cat-nav" aria-label="分类筛选">
+        <a href="/blog/" class="cn-link is-active">全部</a>
+        {cats.map((c) => (
+          <a href={`/archive/${c}/`} class="cn-link">
+            {c}
+          </a>
+        ))}
+      </nav>
+
+      <div class="post-list">
+        {recent.map((p, i) => (
+          <PostCard post={p} index={i} />
+        ))}
+      </div>
+
+      <div class="more-wrap">
+        <a href="/blog/" class="btn btn-primary">查看全部文章</a>
+      </div>
+    </section>
+  </div>
+</BaseLayout>
+
+<style>
+  /* 统计条 —— 悬浮在波浪下方 */
+  .stats-strip {
+    margin-top: -1.6rem;
+    position: relative;
+    z-index: 3;
+  }
+  .stats-inner {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 1.4rem 2rem;
+    background: var(--t-bg-card);
+    border: 1px solid var(--t-line);
+    border-radius: var(--t-radius-lg);
+    box-shadow: var(--t-shadow-card);
+  }
+  .stat {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4em;
+    padding: 0 1.4rem;
+    border-right: 1px solid var(--t-line);
+  }
+  .stat:last-child { border-right: none; }
+  .stat b {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--t-primary);
+    line-height: 1;
+  }
+  .stat span { font-size: 1.2rem; color: var(--t-ink-mute); }
+
+  .home-body {
+    padding-top: 3.4rem;
+    padding-bottom: 5rem;
+  }
+
+  .block { margin-bottom: 4.5rem; }
+
+  .block-title {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    font-size: 2.1rem;
+    font-weight: 700;
+    color: var(--t-ink-strong);
+    margin: 0 0 2rem;
+  }
+  .bt-mark { color: var(--t-primary); font-size: 1.7rem; }
+  .bt-line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--t-line), transparent);
+  }
+  .bt-more {
+    font-size: 1.3rem;
+    font-weight: 500;
+    color: var(--t-ink-mute);
+    flex-shrink: 0;
+  }
+  .bt-more:hover { color: var(--t-primary); }
+
+  .featured-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.6rem;
+  }
+
+  .post-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.6rem;
+  }
+
+  .more-wrap {
+    display: flex;
+    justify-content: center;
+    margin-top: 2.6rem;
+  }
+
+  @media (max-width: 700px) {
+    .stat { padding: 0 0.8rem; }
+    .stat b { font-size: 1.6rem; }
+  }
+</style>
