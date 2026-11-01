@@ -5,4 +5,4 @@ Allow: /
 Disallow: /admin/
 Disallow: /write/
 
-Sitemap: https://oiblog.example.com/sitemap-index.xml
+Sitemap: https://zfzblog.pages.dev/sitemap-index.xml

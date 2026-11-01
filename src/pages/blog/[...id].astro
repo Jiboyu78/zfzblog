@@ -1,5 +1,6 @@
 ---
 import { getCollection, render } from 'astro:content';
+import { existsSync } from 'node:fs';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import GiscusComments from '../../components/comment/GiscusComments.astro';
 import SummaryPanel from '../../components/post/SummaryPanel.astro';
@@ -19,6 +20,10 @@ export async function getStaticPaths() {
 const { post, prev, next } = Astro.props;
 const { Content, headings } = await render(post);
 const d = post.data;
+
+// OG 图：CI 上没有中文字体时不会重新生成，缺图就回落到站点默认图，
+// 避免 <meta property="og:image"> 指向一个 404 的文件。
+const ogImage = existsSync(`./public/og/${post.id}.png`) ? `/og/${post.id}.png` : '/og/default.png';
 
 const dateStr = d.pubDate.toLocaleDateString('zh-CN', {
   year: 'numeric', month: 'long', day: 'numeric',
@@ -64,7 +69,7 @@ const related = [...simPosts, ...tagRelated]
   title={d.title}
   description={d.description}
   kind="post"
-  ogImage={`/og/${post.id}.png`}
+  ogImage={ogImage}
 >
   <!-- ═══ 顶部通栏封面 ═══ -->
   <header class="post-banner">

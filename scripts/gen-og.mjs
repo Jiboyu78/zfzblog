@@ -6,14 +6,20 @@
 //   npm run og -- --slug xxx   # 只生成某篇
 //
 // 注意：Satori 需要字体数据。优先用系统字体；
-// 若系统没有中文字体，会自动降级为纯色背景 + 英文标题（不影响构建）。
+// 若系统没有中文字体（例如 ubuntu-latest 的 CI），直接跳过生成并沿用
+// public/og/ 里已提交的图片 —— 构建绝不能因为缺字体而失败。
+//
+// 环境变量：
+//   OG_FONT_PATH=/path/to/font.otf    显式指定字体（CI 想生成图时用）
+//   OG_CONTENT_DIR=./src/content/blog 指定文章目录
+//   OG_SKIP=1                         跳过整个 OG 生成
 
 import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import satori from 'satori';
 import { Resvg } from '@resvg/resvg-js';
 
-const CONTENT_DIR = './src/content/blog';
+const CONTENT_DIR = process.env.OG_CONTENT_DIR ?? './src/content/blog';
 const OUT_DIR = './public/og';
 const SITE_NAME = 'Yuki 的算法手账';
 const SITE_SUB = 'OI · 多模态 · 工程笔记';
@@ -21,23 +27,27 @@ const SITE_SUB = 'OI · 多模态 · 工程笔记';
 mkdirSync(OUT_DIR, { recursive: true });
 
 // ── 字体加载 ────────────────────────────────────────────────
+// 只认「单文件」+「含中文字形」的字体：Arial.ttf 之类没有中文，
+// 用它渲染中文标题会得到一排豆腐块，比沿用已提交的图片更糟，故跳过。
+const CJK_HINT = /(unicode|noto[-_]?sans[-_]?cjk|source[-_]?han|cjk|wqy|songti|pingfang|wqy|hei)/i;
+
 function loadFonts() {
   // 注意：Satori 不支持 .ttc（TrueType Collection），必须是单个 .ttf / .otf
-  const candidates = [
-    // macOS：Arial Unicode 是单个 TTF 且含中日韩字形
-    '/System/Library/Fonts/Supplemental/Arial Unicode.ttf',
-    '/System/Library/Fonts/Supplemental/Songti.ttc',
-    // Linux 常见
-    '/usr/share/fonts/opentype/noto/NotoSansCJKsc-Regular.otf',
-    '/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc',
-    '/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc',
-    // 英文兜底
-    '/System/Library/Fonts/Supplemental/Arial.ttf',
-  ];
-  const found = candidates.filter((p) => existsSync(p) && !p.endsWith('.ttc'));
-  if (!found.length) {
-    console.warn('[og] 未找到可用的单文件字体（.ttc 不受支持），将生成简化版 OG 图');
-    return [];
+  const candidates = process.env.OG_FONT_PATH
+    ? [process.env.OG_FONT_PATH]
+    : [
+        // macOS：Arial Unicode 是单个 TTF 且含中日韩字形
+        '/System/Library/Fonts/Supplemental/Arial Unicode.ttf',
+        '/System/Library/Fonts/Supplemental/Songti.ttc',
+        // Linux 常见（Debian/Ubuntu 的 fonts-noto-cjk 只提供 .ttc，故不列）
+        '/usr/share/fonts/opentype/noto/NotoSansCJKsc-Regular.otf',
+        '/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc',
+        '/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc',
+      ];
+  const found = candidates.filter((p) => existsSync(p) && !p.toLowerCase().endsWith('.ttc'));
+  const hasCJK = process.env.OG_FONT_PATH ? true : found.some((p) => CJK_HINT.test(p));
+  if (!found.length || !hasCJK) {
+    return { fonts: [], hasCJK: false, found };
   }
   const fonts = found.map((path) => ({
     name: 'main',
@@ -46,10 +56,24 @@ function loadFonts() {
     style: 'normal',
   }));
   console.log(`[og] 使用字体：${found.join(', ')}`);
-  return fonts;
+  return { fonts, hasCJK, found };
 }
 
-const fonts = loadFonts();
+const { fonts } = loadFonts();
+
+if (process.env.OG_SKIP === '1') {
+  console.log('[og] OG_SKIP=1，跳过 OG 生成（沿用 public/og/ 现有图片）');
+  process.exit(0);
+}
+
+if (!fonts.length) {
+  console.warn(
+    '[og] 未找到可用的单文件中文字体（.ttc 不受支持）→ 跳过 OG 生成，' +
+      '沿用 public/og/ 里已提交的图片。构建继续。' +
+      '如需在 CI 生成，请设置 OG_FONT_PATH 指向一个 .otf/.ttf 中文字体。'
+  );
+  process.exit(0);
+}
 
 // ── 解析 frontmatter ──────────────────────────────────────
 function parseFrontmatter(raw) {
@@ -84,7 +108,13 @@ const slugOnly = process.argv.includes('--slug')
   ? process.argv[process.argv.indexOf('--slug') + 1]
   : null;
 
-const files = readdirSync(CONTENT_DIR).filter((f) => f.endsWith('.md') || f.endsWith('.mdx'));
+const files = existsSync(CONTENT_DIR)
+  ? readdirSync(CONTENT_DIR).filter((f) => f.endsWith('.md') || f.endsWith('.mdx'))
+  : [];
+
+if (!files.length) {
+  console.log(`[og] 文章目录 ${CONTENT_DIR} 不存在或为空，跳过文章 OG 生成`);
+}
 
 const CATEGORY_COLOR = {
   OI: '#38bdf8',

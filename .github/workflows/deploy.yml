@@ -8,9 +8,18 @@ on:
 permissions:
   contents: read
 
+# 同一分支只保留最新一次部署，避免并发部署互相覆盖
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # 构建只需要 Node，不需要 playwright 下载 Chromium（那只是本地截图脚本用的），
+      # 跳过可省下 1~2 分钟安装时间。
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,6 +29,12 @@ jobs:
         with:
           node-version: '22.23.4'
           cache: 'npm'
+
+      - name: 准备构建目录
+        run: |
+          # src/content/blog 里只有 .gitkeep（git 不保存空目录），
+          # 这里兜底创建，避免 content loader / OG 脚本因目录缺失报 ENOENT。
+          mkdir -p src/content/blog public/models public/og
 
       - name: Install dependencies
         run: npm ci --include=dev
@@ -36,10 +51,45 @@ jobs:
         env:
           SKIP_SUMMARIES: ${{ vars.SKIP_SUMMARIES }}
           SKIP_SIMILARITIES: ${{ vars.SKIP_SIMILARITIES }}
+          # CI 上没有中文字体，gen-og 会跳过生成并沿用 public/og/ 里已提交的图片。
+          # 想让 CI 也生成 OG 图：加一个 OG_FONT_PATH 变量指向 .otf/.ttf 中文字体。
+          OG_FONT_PATH: ${{ vars.OG_FONT_PATH }}
+
+      - name: 检查部署凭据
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          missing=0
+          if [ -z "$CF_API_TOKEN" ]; then
+            echo "::error title=缺少 CLOUDFLARE_API_TOKEN::在仓库 Settings → Secrets and variables → Actions 添加 Secret，值为 Cloudflare API Token（权限：Account → Cloudflare Pages → Edit）。命令行等价：gh secret set CLOUDFLARE_API_TOKEN"
+            missing=1
+          fi
+          if [ -z "$CF_ACCOUNT_ID" ]; then
+            echo "::error title=缺少 CLOUDFLARE_ACCOUNT_ID::在同一位置添加 Secret，值为 Cloudflare 账号 ID（Dashboard 任意域名的「账户 ID」一栏）。命令行等价：gh secret set CLOUDFLARE_ACCOUNT_ID"
+            missing=1
+          fi
+          exit "$missing"
+
+      - name: Ensure Pages project exists
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_SEND_METRICS: 'false'
+        run: |
+          # 首次部署时项目可能还不存在，wrangler pages deploy 在非交互环境下不会自动创建。
+          # 已存在则跳过；创建失败也不在此中断，交给下面的部署步骤报出真实错误。
+          if npx --yes wrangler@4 pages project list 2>/dev/null | grep -qw "zfzblog"; then
+            echo "Pages 项目 zfzblog 已存在，跳过创建。"
+          else
+            echo "未找到 Pages 项目 zfzblog，尝试创建（production-branch=main）…"
+            npx --yes wrangler@4 pages project create zfzblog --production-branch=main || \
+              echo "::warning::项目创建未成功，继续尝试部署。"
+          fi
 
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=zfzblog
+          command: pages deploy dist --project-name=zfzblog --branch=main

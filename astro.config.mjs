@@ -41,7 +41,9 @@ if (!LIVE2D_ENABLED) {
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://oiblog.example.com',
+  // canonical / OG / sitemap / RSS 全部以它为准，必须和 src/config/site.ts 的 site.url 一致。
+  // 换绑自定义域名时，只改这两个地方（以及 public/robots.txt 的 Sitemap 行）。
+  site: 'https://zfzblog.pages.dev',
   // 中文站优先编码 UTF-8，构建时压缩 HTML
   compressHTML: true,
   integrations: [
