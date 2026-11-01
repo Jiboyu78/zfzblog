@@ -8,12 +8,11 @@
  *     → 中央白卡（头像 / 昵称 / 签名 / 社交按钮）
  *     → 进入博客的提示
  */
-import { site, social } from '@/config';
-import { pickRandomImages } from '@/lib/gallery';
+import { site, social, socialIcons, socialKeys } from '@/config';
 import WaveDivider from './WaveDivider.astro';
 
 interface Props {
-  /** 头图背景图；不传则从图库随机取 */
+  /** 头图背景图；默认主页主图 */
   background?: string;
   /** 头像 */
   avatar?: string;
@@ -21,13 +20,10 @@ interface Props {
   showEnter?: boolean;
 }
 
-const { background, avatar = site.avatar, showEnter = true } = Astro.props;
+const { background = '/img/bg/hero-main.jpg', avatar = site.avatar, showEnter = true } = Astro.props;
 
-// 从图库随机取一张作为头图；图库为空时回落到内置 SVG
-const galleryImages = pickRandomImages(1);
-const heroBg = background ?? galleryImages[0] ?? '/img/bg/hero.svg';
-
-const socialList = Object.entries(social);
+const heroBg = background;
+const socialList = socialKeys.map((k) => ({ key: k, ...social[k], ...socialIcons[k] }));
 ---
 
 <section class="intro-hero">
@@ -43,14 +39,17 @@ const socialList = Object.entries(social);
 
     <div class="intro-socials">
       {
-        socialList.map(([key, s], i) => (
+        socialList.map((s) => (
           <a
             href={s.url}
-            class={`social-btn ${i === 0 ? 'is-primary' : ''}`}
-            target={s.url.startsWith('http') ? '_blank' : undefined}
-            rel={s.url.startsWith('http') ? 'noopener noreferrer' : undefined}
+            class="social-logo"
+            style={`--sc:${s.color}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={s.label}
+            title={s.label}
           >
-            {s.label}
+            <span class="sl-icon" set:html={s.svg} />
           </a>
         ))
       }
@@ -129,7 +128,32 @@ const socialList = Object.entries(social);
   }
   .enter-btn:hover .enter-arrow { transform: translateX(4px); }
 
+  /* 社交平台 logo 图标 */
+  .intro-socials { display: flex; gap: 0.9rem; justify-content: center; }
+  .social-logo {
+    display: grid;
+    place-items: center;
+    width: 4rem;
+    height: 4rem;
+    border-radius: 50%;
+    color: var(--sc, var(--t-primary));
+    background: color-mix(in srgb, var(--t-bg-card) 80%, transparent);
+    border: 1px solid var(--t-line);
+    transition: all 0.28s var(--t-ease);
+    backdrop-filter: blur(6px);
+  }
+  .social-logo:hover {
+    color: #fff;
+    background: var(--sc, var(--t-primary));
+    border-color: transparent;
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 10px 24px -10px color-mix(in srgb, var(--sc, var(--t-primary)) 60%, transparent);
+  }
+  .sl-icon { display: grid; place-items: center; width: 2rem; height: 2rem; }
+  .sl-icon :global(svg) { width: 100%; height: 100%; }
+
   @media (max-width: 700px) {
     .intro-hero { min-height: 78vh; }
+    .social-logo { width: 3.4rem; height: 3.4rem; }
   }
 </style>

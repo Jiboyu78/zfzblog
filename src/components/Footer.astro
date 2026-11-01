@@ -1,9 +1,8 @@
 ---
-import { site, nav, social, features } from '@/config';
+import { site, nav, social, socialIcons, socialKeys, features } from '@/config';
 import WaveDivider from './WaveDivider.astro';
 
 const year = new Date().getFullYear();
-const socialList = Object.entries(social);
 ---
 
 <footer class="site-footer no-print">
@@ -21,15 +20,16 @@ const socialList = Object.entries(social);
         <p class="f-desc">{site.description}</p>
         <div class="f-social">
           {
-            socialList.map(([, s]) => (
+            socialKeys.map((key) => (
               <a
-                href={s.url}
+                href={social[key].url}
                 class="f-social-btn"
-                target={s.url.startsWith('http') ? '_blank' : undefined}
-                rel={s.url.startsWith('http') ? 'noopener noreferrer' : undefined}
-                aria-label={s.label}
+                style={`--sc:${socialIcons[key].color}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={social[key].label}
               >
-                {s.label.slice(0, 2)}
+                <span class="f-social-icon" set:html={socialIcons[key].svg} />
               </a>
             ))
           }
@@ -55,32 +55,19 @@ const socialList = Object.entries(social);
       </div>
 
       <div class="f-col">
-        <div class="f-title">订阅</div>
-        <ul class="f-list">
-          {features.rss && (
-            <li>
-              <a href="/rss.xml">RSS</a>
-            </li>
-          )}
-          <li><a href="/sitemap-index.xml">Sitemap</a></li>
-          {features.editor && (
-            <li>
-              <a href="/write/">写作室</a>
-            </li>
-          )}
-        </ul>
-      </div>
-
-      <div class="f-col">
         <div class="f-title">关于</div>
         <ul class="f-list">
           <li><a href="/about/">关于我</a></li>
           <li><a href="/friends/">友情链接</a></li>
-          {features.editor && (
-            <li>
-              <a href="/admin/">CMS 后台</a>
-            </li>
-          )}
+          {
+            socialKeys.map((key) => (
+              <li>
+                <a href={social[key].url} target="_blank" rel="noopener">
+                  {social[key].label}
+                </a>
+              </li>
+            ))
+          }
         </ul>
       </div>
     </div>
@@ -110,7 +97,7 @@ const socialList = Object.entries(social);
 
   .footer-inner {
     display: grid;
-    grid-template-columns: 1.6fr repeat(3, 1fr);
+    grid-template-columns: 1.6fr repeat(2, 1fr);
     gap: 2.6rem;
     padding-bottom: 2.6rem;
   }
@@ -132,10 +119,8 @@ const socialList = Object.entries(social);
   .f-social-btn {
     display: grid;
     place-items: center;
-    min-width: 3.2rem;
+    width: 3.2rem;
     height: 3.2rem;
-    padding: 0 0.8rem;
-    font-size: 1.15rem;
     color: var(--t-ink-mute);
     background: var(--t-bg-card);
     border: 1px solid var(--t-line);
@@ -143,10 +128,15 @@ const socialList = Object.entries(social);
     transition: all 0.25s var(--t-ease);
   }
   .f-social-btn:hover {
-    color: #fff;
-    background: linear-gradient(135deg, var(--t-gradient-from), var(--t-gradient-to));
-    border-color: transparent;
+    color: var(--sc, var(--t-primary));
+    border-color: var(--sc, var(--t-primary));
     transform: translateY(-2px);
+  }
+  .f-social-icon { display: grid; place-items: center; }
+  .f-social-icon :global(svg) {
+    width: 1.7rem;
+    height: 1.7rem;
+    display: block;
   }
 
   .f-title {

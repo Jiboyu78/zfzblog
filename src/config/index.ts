@@ -5,7 +5,7 @@
  * 这样以后要重构配置结构，只需改这个文件。
  */
 
-export { site, social, nav, features, live2d, comments, gallery, categories } from './site';
+export { site, social, socialIcons, socialKeys, personas, nav, features, live2d, comments, gallery, categories } from './site';
 export type { NavItem, SocialKey } from './site';
 
 export { PRESETS, getPreset } from './theme';

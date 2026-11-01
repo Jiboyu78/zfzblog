@@ -3,23 +3,40 @@
  * 顶部导航 —— koharu 风格
  * 扁平顶栏 + 渐变 logo + 滚动后收窄
  */
-import { nav, features, isNavActive } from '@/config';
+import { nav, features, isNavActive, site } from '@/config';
 import type { NavItem } from '@/config';
+import { getCollection } from 'astro:content';
 
 const pathname = Astro.url.pathname;
 
+// 访客导航：隐藏写作室（只给作者用）
 const visibleNav = nav.filter((item) => {
   if (item.href === '/moments/' && !features.moments) return false;
-  if (item.href === '/write/' && !features.editor) return false;
+  if (item.href === '/write/') return false; // 写作室不进访客导航
   return true;
 });
+
+// 最新三篇文章（抽屉里展示）
+const latest = (await getCollection('blog', ({ data }) => !data.draft))
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
+  .slice(0, 3);
 ---
 
 <header class="site-header no-print" id="site-header">
   <div class="container-page hdr-inner">
+    <!-- 左上角：菜单按钮（打开左侧汉堡抽屉导航） -->
+    <button
+      class="icon-btn hdr-menu"
+      id="mobile-menu-toggle"
+      aria-label="打开菜单"
+      aria-expanded="false"
+    >
+      <span class="icon-menu" aria-hidden="true" />
+    </button>
+
     <a href="/" class="brand" aria-label="首页">
-      <span class="brand-mark">Y</span>
-      <span class="brand-text">Yuki の手账</span>
+      <img class="brand-mark" src="/img/site-icon.png" alt={site.title} width="32" height="32" />
+      <span class="brand-text">{site.title}</span>
     </a>
 
     <nav class="hdr-nav" aria-label="主导航">
@@ -51,31 +68,47 @@ const visibleNav = nav.filter((item) => {
           </button>
         )
       }
-      <button
-        class="icon-btn hdr-menu"
-        id="mobile-menu-toggle"
-        aria-label="打开菜单"
-        aria-expanded="false"
-      >
-        <span class="icon-menu" aria-hidden="true" />
-      </button>
     </div>
   </div>
 
-  <div class="mobile-drawer" id="mobile-drawer" hidden>
-    <nav aria-label="移动端导航">
+  <!-- 左侧抽屉：访客导航 + 最新三篇文章 -->
+  <div class="drawer-scrim" id="drawer-scrim" hidden></div>
+  <aside class="mobile-drawer" id="mobile-drawer" hidden aria-label="侧边导航">
+    <div class="drawer-panel">
+      <div class="drawer-sec">
+        <div class="drawer-label">导航</div>
+        <nav aria-label="移动端导航">
+          {
+            visibleNav.map((item: NavItem) => (
+              <a
+                href={item.href}
+                class={`drawer-link ${isNavActive(item, pathname) ? 'is-active' : ''}`}
+              >
+                {item.title}
+              </a>
+            ))
+          }
+        </nav>
+      </div>
       {
-        visibleNav.map((item: NavItem) => (
-          <a
-            href={item.href}
-            class={`drawer-link ${isNavActive(item, pathname) ? 'is-active' : ''}`}
-          >
-            {item.title}
-          </a>
-        ))
+        latest.length > 0 && (
+          <div class="drawer-sec">
+            <div class="drawer-label">最新文章</div>
+            <nav aria-label="最新文章">
+              {latest.map((p) => (
+                <a href={`/blog/${p.id}/`} class="drawer-post">
+                  <span class="dp-title">{p.data.title}</span>
+                  <span class="dp-date">
+                    {p.data.pubDate.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })}
+                  </span>
+                </a>
+              ))}
+            </nav>
+          </div>
+        )
       }
-    </nav>
-  </div>
+    </div>
+  </aside>
 </header>
 
 <style>
@@ -99,20 +132,18 @@ const visibleNav = nav.filter((item) => {
     font-size: 1.6rem;
     color: var(--t-ink-strong);
     flex-shrink: 0;
+    margin-left: 0.4rem;
   }
   .brand:hover { color: var(--t-primary); }
 
   .brand-mark {
-    display: grid;
-    place-items: center;
+    display: block;
     width: 3.2rem;
     height: 3.2rem;
-    font-size: 1.7rem;
-    color: #fff;
-    background: linear-gradient(135deg, var(--t-gradient-from), var(--t-gradient-to));
     border-radius: var(--t-radius-md);
     box-shadow: var(--t-shadow-button);
     transition: transform 0.3s var(--t-ease);
+    object-fit: cover;
   }
   .brand:hover .brand-mark { transform: rotate(-8deg) scale(1.06); }
 
@@ -185,29 +216,87 @@ const visibleNav = nav.filter((item) => {
   :global(html.dark) .icon-sun { display: none; }
   :global(html:not(.dark)) .icon-moon { display: none; }
 
-  .hdr-menu { display: none; }
+  .hdr-menu { display: grid; }
 
-  .mobile-drawer {
-    border-top: 1px solid var(--t-line);
-    background: var(--t-bg-card);
-    padding: 0.6rem 0;
+  /* ── 左侧抽屉导航 ── */
+  .drawer-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 59;
+    background: rgba(0, 0, 0, 0.32);
+    opacity: 0;
+    transition: opacity 0.28s var(--t-ease);
+    pointer-events: none;
   }
-  .mobile-drawer[hidden] { display: none; }
+  .drawer-scrim.is-open { opacity: 1; pointer-events: auto; }
+  .mobile-drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 60;
+    width: 27rem;
+    max-width: 82vw;
+    background: var(--t-bg-card);
+    border-right: 1px solid var(--t-line);
+    box-shadow: var(--t-shadow-float);
+    transform: translateX(-105%);
+    transition: transform 0.32s var(--t-ease);
+    overflow-y: auto;
+  }
+  .mobile-drawer.is-open { transform: none; }
+  .mobile-drawer[hidden] { display: block; visibility: hidden; }
+  .mobile-drawer.is-open[hidden] { visibility: visible; }
+
+  .drawer-panel { padding: 1.6rem 0.4rem 2rem; }
+  .drawer-sec { padding: 0.8rem 0; }
+  .drawer-sec + .drawer-sec { border-top: 1px solid var(--t-line-soft); }
+  .drawer-label {
+    padding: 0.4rem 2rem 0.8rem;
+    font-size: 1.05rem;
+    font-family: var(--t-font-mono);
+    letter-spacing: 0.12em;
+    color: var(--t-ink-mute);
+    text-transform: uppercase;
+  }
   .drawer-link {
     display: block;
     padding: 0.85rem 2rem;
-    font-size: 1.35rem;
+    font-size: 1.4rem;
     color: var(--t-ink);
+    border-radius: 0 var(--t-radius-full) var(--t-radius-full) 0;
   }
+  .drawer-link:hover { background: color-mix(in srgb, var(--t-primary) 8%, transparent); }
   .drawer-link.is-active {
     color: var(--t-primary);
     font-weight: 700;
-    background: color-mix(in srgb, var(--t-primary) 8%, transparent);
+    background: color-mix(in srgb, var(--t-primary) 10%, transparent);
+  }
+  .drawer-post {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.7rem 2rem;
+    border-radius: 0 var(--t-radius-full) var(--t-radius-full) 0;
+  }
+  .drawer-post:hover { background: color-mix(in srgb, var(--t-primary) 8%, transparent); }
+  .dp-title {
+    font-size: 1.3rem;
+    color: var(--t-ink-strong);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .dp-date {
+    font-size: 1.05rem;
+    color: var(--t-ink-mute);
+    font-family: var(--t-font-mono);
   }
 
   @media (max-width: 900px) {
     .hdr-nav { display: none; }
-    .hdr-menu { display: grid; }
     .brand-text { display: none; }
   }
 </style>
@@ -221,11 +310,34 @@ const visibleNav = nav.filter((item) => {
 
   const toggle = document.getElementById('mobile-menu-toggle');
   const drawer = document.getElementById('mobile-drawer');
+  const scrim = document.getElementById('drawer-scrim');
+
+  function setDrawer(open: boolean) {
+    if (!drawer || !scrim) return;
+    if (open) {
+      drawer.removeAttribute('hidden');
+      // 强制 reflow 后再加 class 以触发过渡
+      void drawer.offsetWidth;
+      drawer.classList.add('is-open');
+      scrim.removeAttribute('hidden');
+      void scrim.offsetWidth;
+      scrim.classList.add('is-open');
+      document.body.style.overflow = 'hidden';
+    } else {
+      drawer.classList.remove('is-open');
+      scrim.classList.remove('is-open');
+      document.body.style.overflow = '';
+      // 等过渡结束再 hidden（可访问性）
+      setTimeout(() => { drawer.setAttribute('hidden', ''); scrim.setAttribute('hidden', ''); }, 320);
+    }
+    toggle?.setAttribute('aria-expanded', String(open));
+  }
+
   toggle?.addEventListener('click', () => {
-    if (!drawer) return;
-    const open = drawer.hasAttribute('hidden');
-    if (open) drawer.removeAttribute('hidden');
-    else drawer.setAttribute('hidden', '');
-    toggle.setAttribute('aria-expanded', String(open));
+    setDrawer(!drawer?.classList.contains('is-open'));
+  });
+  scrim?.addEventListener('click', () => setDrawer(false));
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && drawer?.classList.contains('is-open')) setDrawer(false);
   });
 </script>

@@ -1,30 +1,31 @@
-# Decap CMS（原 Netlify CMS）配置
-# 访问 /admin/ 即可打开可视化编辑器，保存后自动 commit 到 GitHub 并触发重新构建。
+# Sveltia CMS（Decap CMS 的现代轻量替代）配置
 #
-# 前置条件（一次性配置）：
-#   1. 在 GitHub → Settings → Developer settings → OAuth Apps 创建应用
-#      Authorization callback URL: https://api.netlify.com/auth/done
-#   2. 把 Client ID / Secret 填进下面，或用 Netlify Identity / Cloudflare Workers 代理
-#   3. 在 config.yml 里把 backend.repo 改成 你的用户名/仓库名
+# 你的需求：纯网页零终端写作 —— 在任何设备/浏览器打开本站 /admin/，
+# 点「Login with GitHub」授权后，就能直接在线新建/编辑/上传文章，
+# 保存即自动 commit 到 GitHub → Cloudflare Pages 自动重新部署。全程不用碰终端。
 #
-# 不想折腾 OAuth？用站内的 /write/ 写作台，或者直接本地写 md 文件。
+# ✅ 一次性配置步骤（只需做一遍，详见 docs/写作后台配置.md）：
+#   1. 注册一个 GitHub OAuth App：GitHub → Settings → Developer settings → OAuth Apps → New OAuth App
+#      - Homepage URL: https://zfzblog.pages.dev
+#      - Authorization callback URL: https://你的worker名.workers.dev/callback
+#   2. 部署免费 OAuth 代理（sveltia-cms-auth，Cloudflare Workers 免费档即可）
+#      → 得到你的 worker 域名，填到下面 backend.base_url
+#   3. backend.repo 改成本仓库（已预填 Jiboyu78/zfzblog）
 
 backend:
   name: github
-  repo: YOUR_USERNAME/oiblog
+  repo: Jiboyu78/zfzblog
   branch: main
-  # 若使用自建 OAuth 网关，改成：
-  # base_url: https://your-oauth-worker.example.workers.dev
+  # ⚠️ 必须填：你的 sveltia-cms-auth OAuth 代理域名（Cloudflare Workers 免费部署）
+  base_url: https://YOUR-SVELTIA-AUTH-WORKER.workers.dev
 
 media_folder: public/img/uploads
 public_folder: /img/uploads
 
-site_url: https://oiblog.example.com
-logo_url: https://oiblog.example.com/favicon.svg
+site_url: https://zfzblog.pages.dev
+locale: zh-Hans
 
 publish_mode: editorial_workflow
-media_library:
-  max_file_size: 5242880   # 5 MB
 
 collections:
   - name: blog
@@ -47,20 +48,14 @@ collections:
         widget: list
         required: false
         default: []
+        summary: '{{fields.tag}}'
         field: { label: 标签, name: tag, widget: string }
       - label: 分类
         name: category
         widget: select
         default: 随笔
         options: [OI, AI, 工程, 随笔, 比赛]
-      - { label: 封面图, name: heroImage, widget: image, required: false }
+      - { label: 封面图, name: cover, widget: image, required: false }
       - { label: 精选, name: featured, widget: boolean, default: false, required: false }
       - { label: 草稿, name: draft, widget: boolean, default: false, required: false }
       - { label: 正文, name: body, widget: markdown }
-
-  - name: pages
-    label: 页面
-    folder: src/pages
-    create: false
-    files:
-      - { label: 关于, name: about, file: about.astro, widget: file }

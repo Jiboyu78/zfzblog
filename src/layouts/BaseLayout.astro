@@ -29,7 +29,7 @@ const {
   noIndex = false,
 } = Astro.props;
 
-const pageTitle = title ? `${title} | ${site.title}` : `${site.title} · ${site.subtitle}`;
+const pageTitle = title ? `${title} | ${site.title}` : site.title;
 const canonical = new URL(Astro.url.pathname, Astro.site);
 const ogUrl = new URL(ogImage, Astro.site ?? site.url).href;
 const themeCss = themeStyleText();
@@ -61,6 +61,8 @@ const themeCss = themeStyleText();
     <meta name="twitter:image" content={ogUrl} />
 
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <!-- 标签页标题：离开页面时换成「我与我周旋久，宁作我」 -->
+    <script is:inline set:html={`(function(){var main=${JSON.stringify(site.title)},hidden=${JSON.stringify(site.hiddenTitle||site.title)};document.addEventListener('visibilitychange',function(){document.title=document.hidden?hidden:main;});})();`} />
     <link rel="alternate" type="application/rss+xml" title={site.title} href="/rss.xml" />
 
     <!-- 主题变量：由 src/config/site.ts 的 preset 决定，运行时注入 -->
