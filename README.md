@@ -1,4 +1,4 @@
-# Yuki 的算法手账 · 个人博客
+# lnzfz's blog · 个人博客
 
 > 一个「OIer风格」的个人站点：Astro 7 + Tailwind CSS v4 + Live2D 看板娘，
 > 大量手写动效、零 JS 默认输出、上传文章一步到位。
