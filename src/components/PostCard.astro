@@ -28,11 +28,12 @@ const dateStr = d.pubDate.toLocaleDateString('zh-CN', {
   day: '2-digit',
 });
 
-/** 阅读时长估算 —— 中文按字数，西文按词数 */
+/** 阅读时长 / 字数 / AI 标签 —— 统一从 src/lib/readtime.ts 计算 */
+import { readMinutes, wordCount, aiLevel, aiIcons } from '@/lib/readtime';
 const raw = post.body ?? '';
-const cjk = (raw.match(/[一-龥]/g) || []).length;
-const words = (raw.match(/[a-zA-Z0-9]+/g) || []).length;
-const readTime = Math.max(1, Math.round(cjk / 400 + words / 200));
+const minutes = readMinutes(raw);
+const words = wordCount(raw);
+const ai = aiLevel(raw);
 ---
 
 <article class={`post-card reveal ${isReversed ? 'is-reversed' : ''} ${compact ? 'is-compact' : ''} ${cover ? '' : 'no-cover'}`}>
@@ -52,6 +53,10 @@ const readTime = Math.max(1, Math.round(cjk / 400 + words / 200));
     <div class="pc-head">
       <a href={`/archive/${d.category}/`} class="pc-cat">{d.category}</a>
       {d.featured && <span class="pc-featured">✦ 推荐</span>}
+      <span class="pc-ai ai-{ai.level}" title={ai.label}>
+        <span class="ai-icon" set:html={aiIcons[ai.icon]} />
+        <span class="ai-label">{ai.label}</span>
+      </span>
       <span class="pc-date">{dateStr}</span>
     </div>
 
@@ -65,7 +70,7 @@ const readTime = Math.max(1, Math.round(cjk / 400 + words / 200));
       <div class="pc-tags">
         {d.tags.slice(0, 4).map((t) => <a href={`/tags/${t}/`} class="tag">#{t}</a>)}
       </div>
-      <span class="pc-time">{readTime} 分钟阅读</span>
+      <span class="pc-time">{words.toLocaleString()} 字 · {minutes} 分钟</span>
     </div>
   </div>
 </article>
@@ -160,6 +165,19 @@ const readTime = Math.max(1, Math.round(cjk / 400 + words / 200));
   }
   .pc-tags { display: flex; flex-wrap: wrap; gap: 0.45rem; }
   .pc-time { font-size: 1.2rem; color: var(--t-ink-mute); white-space: nowrap; }
+  .pc-ai {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 1.1rem;
+    font-family: var(--t-font-mono);
+    white-space: nowrap;
+  }
+  .pc-ai .ai-icon { display: inline-flex; width: 0.9em; height: 0.9em; }
+  .pc-ai .ai-icon svg { width: 100%; height: 100%; }
+  .pc-ai.ai-human { color: var(--t-ink-mute); }
+  .pc-ai.ai-co { color: var(--t-accent); }
+  .pc-ai.ai-ai { color: var(--t-primary); }
 
   /* 无图时的紧凑形态 */
   .is-compact .pc-body { grid-column: 1 / -1; }

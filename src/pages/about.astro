@@ -37,7 +37,7 @@ const socialList = socialKeys.map((k) => ({ key: k, ...social[k], ...socialIcons
               aria-label={s.label}
               title={s.label}
             >
-              <span class="sl-icon" set:html={s.svg} />
+              <img class="sl-icon" src={s.icon} alt={s.label} width="20" height="20" loading="lazy" />
             </a>
           ))
         }

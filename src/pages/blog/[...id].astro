@@ -6,6 +6,7 @@ import GiscusComments from '../../components/comment/GiscusComments.astro';
 import SummaryPanel from '../../components/post/SummaryPanel.astro';
 import { site, features, comments } from '@/config';
 import similaritiesCache from '../../data/cache/similarities.json';
+import { readMinutes, wordCount, aiLevel, aiIcons } from '@/lib/readtime';
 
 export async function getStaticPaths() {
   const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
@@ -32,12 +33,10 @@ const updatedStr = d.updatedDate?.toLocaleDateString('zh-CN', {
   year: 'numeric', month: 'long', day: 'numeric',
 });
 
-// 阅读时长：中文 400 字/分钟，代码块额外折算
-const bodyText = (post.body ?? '').replace(/```[\s\S]*?```/g, ' ');
-const readMinutes = Math.max(
-  1,
-  Math.round((bodyText.match(/[一-龥]/g)?.length ?? 0) / 400 + (bodyText.split(/\s+/).length / 220))
-);
+// 阅读时长 / 字数 / AI 标签 —— 统一从 src/lib/readtime.ts 计算
+const postWords = wordCount(post.body ?? '');
+const postReadMin = readMinutes(post.body ?? '');
+const ai = aiLevel(post.body ?? '');
 
 const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
 
@@ -81,7 +80,14 @@ const related = [...simPosts, ...tagRelated]
         <span class="pb-dot">·</span>
         <a href={`/archive/${d.category}/`}>{d.category}</a>
         <span class="pb-dot">·</span>
-        <span>{readMinutes} 分钟阅读</span>
+        <span>{postWords.toLocaleString()} 字</span>
+        <span class="pb-dot">·</span>
+        <span>{postReadMin} 分钟阅读</span>
+        <span class="pb-dot">·</span>
+        <span class={`pb-ai ai-${ai.level}`} title={ai.label}>
+          <span class="pb-ai-icon" set:html={aiIcons[ai.icon]} />
+          {ai.label}
+        </span>
       </div>
       <h1 class="pb-title" data-pagefind-meta="title">{d.title}</h1>
       {d.description && <p class="pb-desc" data-pagefind-meta="description">{d.description}</p>}
@@ -158,7 +164,7 @@ const related = [...simPosts, ...tagRelated]
           <div><dt>发布</dt><dd>{dateStr}</dd></div>
           {d.updatedDate && <div><dt>更新</dt><dd>{updatedStr}</dd></div>}
           <div><dt>分类</dt><dd>{d.category}</dd></div>
-          <div><dt>阅读</dt><dd>{readMinutes} min</dd></div>
+          <div><dt>阅读</dt><dd>{postReadMin} min</dd></div>
         </dl>
       </div>
 
@@ -225,6 +231,26 @@ const related = [...simPosts, ...tagRelated]
     width: 100%;
   }
   .pb-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--t-font-mono);
+    font-size: 1.25rem;
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: 1rem;
+  }
+  .pb-ai {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 1.15rem;
+  }
+  .pb-ai-icon { display: inline-flex; width: 1em; height: 1em; }
+  .pb-ai-icon :global(svg) { width: 100%; height: 100%; }
+  .pb-ai.ai-human { opacity: 0.85; }
+  .pb-ai.ai-co { color: var(--t-accent, #9b7bff); }
+  .pb-ai.ai-ai { color: #fff; }
     display: flex;
     align-items: center;
     gap: 0.7rem;

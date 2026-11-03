@@ -39,12 +39,44 @@ jobs:
       - name: Install dependencies
         run: npm ci --include=dev
 
-      - name: Restore Live2D models (Git LFS / 手动放置)
+      - name: 下载 Live2D 模型（gofile 托管）
+        env:
+          GOFILE_CONTENT_ID: KN1WJEne
         run: |
-          # Live2D 模型与 Cubism Core 禁止再分发，不进仓库。
-          # 部署时如有需要，可在此步从私有对象存储下载，或跳过（站点自动降级为静态立绘）。
-          echo "Live2D models are excluded from the repo (license). Static fallback is used on CI."
-          mkdir -p public/models
+          # 模型授权禁止随仓库分发（大肥鱼免费公皮），部署时从 gofile 临时拉取。
+          # gofile 公开文件夹免 API key 读取：getContent 返回每个文件的直链。
+          set -e
+          mkdir -p public/models/dafeiyu
+          INFO=$(curl -s "https://api.gofile.io/getContent?contentId=${GOFILE_CONTENT_ID}")
+          LINK=$(echo "$INFO" | python3 -c "
+            import sys, json
+            d = json.load(sys.stdin)
+            for c in d.get('data', {}).get('children', {}).values():
+                if c.get('name', '').endswith('.zip'):
+                    print(c['link']); break
+          ")
+          if [ -z "$LINK" ]; then
+            echo "::warning::gofile 模型下载失败，回退到静态立绘。"
+            exit 0
+          fi
+          echo "下载模型: $LINK"
+          curl -sL "$LINK" -o /tmp/model.zip
+          unzip -q /tmp/model.zip -d /tmp/l2d
+          # 兼容 zip 内多一层目录（DeepSeek/）或直接铺平
+          if [ -d /tmp/l2d/DeepSeek ]; then
+            cp -R /tmp/l2d/DeepSeek/* public/models/dafeiyu/
+          else
+            cp -R /tmp/l2d/* public/models/dafeiyu/
+          fi
+          echo "模型已就位: $(du -sh public/models/dafeiyu | cut -f1)"
+
+      - name: 下载 Cubism Core 运行时
+        run: |
+          # Cubism Core 是 Live2D Inc. 专有软件，官方禁止再分发，
+          # 因此每次构建从官方公开端点现取。
+          curl -sL "https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js" \
+            -o public/models/live2dcubismcore.min.js
+          echo "Cubism Core 已下载"
 
       - name: Build (Astro + OG + Pagefind)
         run: npm run build

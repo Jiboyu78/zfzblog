@@ -29,7 +29,7 @@ const year = new Date().getFullYear();
                 rel="noopener noreferrer"
                 aria-label={social[key].label}
               >
-                <span class="f-social-icon" set:html={socialIcons[key].svg} />
+                <img class="f-social-icon" src={socialIcons[key].icon} alt={social[key].label} width="16" height="16" loading="lazy" />
               </a>
             ))
           }
