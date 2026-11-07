@@ -2,9 +2,12 @@
 title: 欢迎来到 lnzfz’s blog
 description: 这是一篇系统生成的示例文章，用来验证阅读时间、字数统计和 AI 创作标签是否正常工作。
 pubDate: 2026-11-03
+updatedDate: ''
+tags:
+  - 博客
+  - 示例
 category: 随笔
-tags: [博客, 示例]
-cover: /img/placeholder.svg
+cover: /img/uploads/655c5abff2066aa76b91fc57a204bc97db555ab9.jpg
 ---
 
 你好，我是 Neoma / lnzfz。这是一篇示例文章，用来验证博客的几个新功能。
@@ -16,6 +19,7 @@ cover: /img/placeholder.svg
 ## AI 创作标签
 
 每篇文章现在还会根据写作痕迹自动标注 AI 含量：
+
 - 🖊 羽毛笔 —— 人类手写
 - ✧ 空心星 —— 与 AI 合写
 - ✦ 实心星 —— AI 主笔
