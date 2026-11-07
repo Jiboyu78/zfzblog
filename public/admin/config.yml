@@ -16,8 +16,8 @@ backend:
   name: github
   repo: Jiboyu78/zfzblog
   branch: main
-  # ⚠️ 必须填：你的 sveltia-cms-auth OAuth 代理域名（Cloudflare Workers 免费部署）
-  base_url: https://YOUR-SVELTIA-AUTH-WORKER.workers.dev
+  # Sveltia CMS GitHub OAuth 代理（Cloudflare Workers 免费部署）
+  base_url: https://zfzouath.lnzfz.workers.dev
 
 media_folder: public/img/uploads
 public_folder: /img/uploads
