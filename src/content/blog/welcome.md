@@ -6,6 +6,7 @@ tags:
   - 博客
   - 示例
 category: 随笔
+aiTag: human
 cover: /img/uploads/655c5abff2066aa76b91fc57a204bc97db555ab9.jpg
 ---
 

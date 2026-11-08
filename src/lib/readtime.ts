@@ -36,26 +36,19 @@ export function readMinutes(markdown: string): number {
 /** AI 创作标签：人类手写 / 与 AI 合写 / AI 主笔 */
 export type AiLevel = 'human' | 'co' | 'ai';
 
-export function aiLevel(markdown: string): { level: AiLevel; label: string; icon: 'pen' | 'star-outline' | 'star' } {
-  const text = plainText(markdown);
-  const total = text.length || 1;
-  // 粗略判断：常见 AI 写作痕迹（连续的「首先/其次/总而言之/因此可见」、过度整齐的排比、表情符号密度）+ 句子长度分布方差低
-  const aiPhrases = (text.match(/(首先|其次|再次|最后|总而言之|综上|由此可见|不难发现|值得一提的是|与此同时)/g) || []).length;
-  const emoji = (text.match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu) || []).length;
-  const sentences = text.split(/[。！？.!?]+/).filter((s) => s.trim().length > 4);
-  const lens = sentences.map((s) => s.length);
-  const mean = lens.reduce((a, b) => a + b, 0) / Math.max(lens.length, 1);
-  const variance = lens.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(lens.length, 1);
-  const density = aiPhrases / Math.max(sentences.length, 1);
-  const emojiRate = emoji / total;
+const AI_LABELS: Record<AiLevel, { label: string; icon: 'pen' | 'star-outline' | 'star' }> = {
+  human: { label: '人类手写', icon: 'pen' },
+  co: { label: '与 AI 合写', icon: 'star-outline' },
+  ai: { label: 'AI 主笔', icon: 'star' },
+};
 
-  if (aiPhrases >= 4 || emojiRate > 0.02 || (density > 0.25 && variance < 100)) {
-    return { level: 'ai', label: 'AI 主笔', icon: 'star' };
-  }
-  if (aiPhrases >= 1 || emojiRate > 0.005) {
-    return { level: 'co', label: '与 AI 合写', icon: 'star-outline' };
-  }
-  return { level: 'human', label: '人类手写', icon: 'pen' };
+/**
+ * AI 创作标签改为写作后台手动标注（frontmatter `aiTag` 字段），
+ * 不再根据正文内容自动猜测。缺省按「人类手写」处理。
+ */
+export function aiTagInfo(tag: AiLevel = 'human'): { level: AiLevel; label: string; icon: 'pen' | 'star-outline' | 'star' } {
+  const info = AI_LABELS[tag] ?? AI_LABELS.human;
+  return { level: tag in AI_LABELS ? tag : 'human', ...info };
 }
 
 /** 羽毛笔 / 空心星 / 实心星 SVG（用于 AI 含量标识） */

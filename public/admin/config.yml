@@ -27,6 +27,11 @@ locale: zh-Hans
 
 publish_mode: editorial_workflow
 
+# 保存时省略空的可选字段：Sveltia 默认会把留空的 datetime 写成
+# `updatedDate: ''`（空字符串），Astro 7 严格 schema（z.coerce.date()）
+# 会因此构建失败。开启后空字段直接从 frontmatter 省略。
+omit_empty_optional_fields: true
+
 collections:
   - name: blog
     label: 文章
@@ -42,7 +47,15 @@ collections:
       - { label: 标题, name: title, widget: string }
       - { label: 摘要, name: description, widget: text, required: false }
       - { label: 发布日期, name: pubDate, widget: datetime, date_format: 'YYYY-MM-DD', time_format: false }
-      - { label: 更新日期, name: updatedDate, widget: datetime, date_format: 'YYYY-MM-DD', time_format: false, required: false }
+      - { label: 更新日期, name: updatedDate, widget: datetime, date_format: 'YYYY-MM-DD', time_format: false, required: false, default: '' }
+      - label: AI 创作标签
+        name: aiTag
+        widget: select
+        default: human
+        options:
+          - { label: 🖊 人类手写, value: human }
+          - { label: ✧ 与 AI 合写, value: co }
+          - { label: ✦ AI 主笔, value: ai }
       - label: 标签
         name: tags
         widget: list

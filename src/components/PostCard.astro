@@ -29,12 +29,13 @@ const dateStr = d.pubDate.toLocaleDateString('zh-CN', {
   day: '2-digit',
 });
 
-/** 阅读时长 / 字数 / AI 标签 —— 统一从 src/lib/readtime.ts 计算 */
-import { readMinutes, wordCount, aiLevel, aiIcons } from '@/lib/readtime';
+/** 阅读时长 / 字数 / AI 标签 —— 统一从 src/lib/readtime.ts 计算；
+    AI 标签为 frontmatter 手动标注（aiTag），不再按正文自动判断 */
+import { readMinutes, wordCount, aiTagInfo, aiIcons } from '@/lib/readtime';
 const raw = post.body ?? '';
 const minutes = readMinutes(raw);
 const words = wordCount(raw);
-const ai = aiLevel(raw);
+const ai = aiTagInfo(d.aiTag);
 ---
 
 <article class={`post-card reveal ${isReversed ? 'is-reversed' : ''} ${compact ? 'is-compact' : ''} ${cover ? '' : 'no-cover'}`}>
@@ -54,7 +55,7 @@ const ai = aiLevel(raw);
     <div class="pc-head">
       <a href={`/archive/${d.category}/`} class="pc-cat">{d.category}</a>
       {d.featured && <span class="pc-featured">✦ 推荐</span>}
-      <span class="pc-ai ai-{ai.level}" title={ai.label}>
+      <span class={`pc-ai ai-${ai.level}`} title={ai.label}>
         <span class="ai-icon" set:html={aiIcons[ai.icon]} />
         <span class="ai-label">{ai.label}</span>
       </span>

@@ -6,6 +6,7 @@ updatedDate: 2026-11-08
 tags:
   - 碎碎念
 category: 比赛
+aiTag: human
 cover: /img/uploads/微信图片_20261001133609_13_2.png
 featured: false
 draft: false

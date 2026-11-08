@@ -6,7 +6,7 @@ import GiscusComments from '../../components/comment/GiscusComments.astro';
 import SummaryPanel from '../../components/post/SummaryPanel.astro';
 import { site, features, comments } from '@/config';
 import similaritiesCache from '../../data/cache/similarities.json';
-import { readMinutes, wordCount, aiLevel, aiIcons } from '@/lib/readtime';
+import { readMinutes, wordCount, aiTagInfo, aiIcons } from '@/lib/readtime';
 
 export async function getStaticPaths() {
   const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
@@ -33,10 +33,11 @@ const updatedStr = d.updatedDate?.toLocaleDateString('zh-CN', {
   year: 'numeric', month: 'long', day: 'numeric',
 });
 
-// 阅读时长 / 字数 / AI 标签 —— 统一从 src/lib/readtime.ts 计算
+// 阅读时长 / 字数 / AI 标签 —— 统一从 src/lib/readtime.ts 计算；
+// AI 标签为 frontmatter 手动标注（aiTag），不再按正文自动判断
 const postWords = wordCount(post.body ?? '');
 const postReadMin = readMinutes(post.body ?? '');
-const ai = aiLevel(post.body ?? '');
+const ai = aiTagInfo(d.aiTag);
 
 const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
 

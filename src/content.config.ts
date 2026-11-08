@@ -15,6 +15,8 @@ const blog = defineCollection({
     heroImage: z.string().optional(),
     /** 显式封面（优先于图库随机） */
     cover: z.string().optional(),
+    /** AI 创作标签：写作后台手动选择（human 人类手写 / co 与 AI 合写 / ai AI 主笔） */
+    aiTag: z.enum(['human', 'co', 'ai']).default('human'),
     tags: z.array(z.string()).default([]),
     category: z.enum(['OI', 'AI', '工程', '随笔', '比赛']).default('随笔'),
     draft: z.boolean().default(false),

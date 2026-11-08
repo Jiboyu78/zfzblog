@@ -39,31 +39,23 @@ jobs:
       - name: Install dependencies
         run: npm ci --include=dev
 
-      - name: 下载 Live2D 模型（gofile 托管）
-        env:
-          GOFILE_CONTENT_ID: KN1WJEne
+      - name: 下载 Live2D 模型（GitHub Release 托管）
         run: |
-          # 模型授权禁止随仓库分发（大肥鱼免费公皮），部署时从 gofile 临时拉取。
-          # gofile 公开文件夹免 API key 读取：getContent 返回每个文件的直链。
+          # 模型授权禁止随仓库分发（大肥鱼免费公皮），部署时从本仓库的
+          # GitHub Release（tag: live2d-assets）拉取。仓库已转 public，
+          # Release 资源直链无需认证即可下载；失败则保留静态立绘降级。
           set -e
           mkdir -p public/models/dafeiyu
-          INFO=$(curl -s "https://api.gofile.io/getContent?contentId=${GOFILE_CONTENT_ID}")
-          LINK=$(echo "$INFO" | python3 -c "
-            import sys, json
-            d = json.load(sys.stdin)
-            for c in d.get('data', {}).get('children', {}).values():
-                if c.get('name', '').endswith('.zip'):
-                    print(c['link']); break
-          ")
-          if [ -z "$LINK" ]; then
-            echo "::warning::gofile 模型下载失败，回退到静态立绘。"
+          URL="https://github.com/Jiboyu78/zfzblog/releases/download/live2d-assets/dafeiyu.zip"
+          if ! curl -sfL "$URL" -o /tmp/model.zip; then
+            echo "::warning::模型下载失败，回退到静态立绘。"
             exit 0
           fi
-          echo "下载模型: $LINK"
-          curl -sL "$LINK" -o /tmp/model.zip
           unzip -q /tmp/model.zip -d /tmp/l2d
-          # 兼容 zip 内多一层目录（DeepSeek/）或直接铺平
-          if [ -d /tmp/l2d/DeepSeek ]; then
+          # 兼容 zip 内多一层目录（dafeiyu/）或直接铺平
+          if [ -d /tmp/l2d/dafeiyu ]; then
+            cp -R /tmp/l2d/dafeiyu/* public/models/dafeiyu/
+          elif [ -d /tmp/l2d/DeepSeek ]; then
             cp -R /tmp/l2d/DeepSeek/* public/models/dafeiyu/
           else
             cp -R /tmp/l2d/* public/models/dafeiyu/

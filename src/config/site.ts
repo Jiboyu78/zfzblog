@@ -161,10 +161,13 @@ export const features = {
 export const live2d = {
   /** 默认模型目录名 —— 对应 public/models/<id>/ */
   defaultModel: 'dafeiyu',
-  /** 可切换的模型；每个模型需要配套 Cubism Core */
+  /** 可切换的模型；每个模型需要配套 Cubism Core。
+      file 为模型描述文件名：公皮的实际文件名往往与目录 id 不一致
+      （大肥鱼的描述文件是「大肥鱼.model3.json」而非「dafeiyu.model3.json」），
+      不写死 ${id}.model3.json，否则构建期探测和运行时加载都会 404。 */
   models: [
     // DeepSeek-chan（大肥鱼）免费公皮 —— 原画：神宫凉子 / 建模：霓虹猫_NeonNeko
-    { id: 'dafeiyu', name: '大肥鱼', cubism: 4 },
+    { id: 'dafeiyu', name: '大肥鱼', cubism: 4, file: '大肥鱼.model3.json' },
   ],
   /** 挂件在屏幕上的边距（px） */
   offset: { x: 24, y: 24 },

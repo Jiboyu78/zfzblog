@@ -13,18 +13,25 @@
  *    不如构建时直接探测 —— 缺资源就完全不发起 Live2D 请求，走静态立绘。
  */
 import { existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { live2d as live2dConfig } from '@/config';
 
-const PUB = fileURLToPath(new URL('../../public/', import.meta.url));
+// 不能用 import.meta.url 推导 public/ 路径：构建时它会被转换到输出目录（dist/），
+// 导致 '../../public/' 解析成 dist/public/ 而探测永远失败（看板娘只显示静态立绘）。
+// 构建期的 process.cwd() 恒为项目根目录，与 astro.config.mjs 的探测行为一致。
+const PUB = join(process.cwd(), 'public') + '/';
 
 /** Cubism Core 运行时是否存在（需自行从官网 SDK 放置） */
 const hasCore = existsSync(`${PUB}models/live2dcubismcore.min.js`);
 
-/** 只保留模型描述文件真实存在的模型 */
-const models = live2dConfig.models.filter((m) =>
-  existsSync(`${PUB}models/${m.id}/${m.id}.model3.json`)
-);
+/** 只保留模型描述文件真实存在的模型（file 与实际文件名一致，
+    缺省退回 ${id}.model3.json） */
+const models = live2dConfig.models.filter((m) => {
+  const file = (m as { file?: string }).file ?? `${m.id}.model3.json`;
+  const p = `${PUB}models/${m.id}/${file}`;
+  console.log('[l2d-debug]', JSON.stringify({ p, exists: existsSync(p), PUB }));
+  return existsSync(p);
+});
 const defaultModel = live2dConfig.defaultModel;
 /** 没有 Core 或没有可用模型 → 纯静态立绘模式 */
 const live2dEnabled = hasCore && models.length > 0;
@@ -184,7 +191,7 @@ const { w: width, h: height } = live2dConfig.size;
 
 <script>
   interface L2DConfig {
-    models: { id: string; name: string }[];
+    models: { id: string; name: string; file?: string }[];
     defaultModel: string;
   }
 
@@ -370,7 +377,11 @@ const { w: width, h: height } = live2dConfig.size;
           model = null;
         }
 
-        const url = `/models/${id}/${id}.model3.json`;
+        // 描述文件名以配置为准（大肥鱼等公皮的文件名与目录 id 不一致），
+        // 缺省退回 ${id}.model3.json；中文名需编码后再请求
+        const entry = MODELS.find((m) => m.id === id);
+        const file = entry?.file ?? `${id}.model3.json`;
+        const url = `/models/${id}/${encodeURIComponent(file)}`;
         model = await Live2DModel.from(url, { autoInteract: true });
 
         // 适配画布
