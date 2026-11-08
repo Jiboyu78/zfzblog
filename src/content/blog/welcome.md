@@ -2,7 +2,6 @@
 title: 欢迎来到 lnzfz’s blog
 description: 这是一篇系统生成的示例文章，用来验证阅读时间、字数统计和 AI 创作标签是否正常工作。
 pubDate: 2026-11-03
-updatedDate: ''
 tags:
   - 博客
   - 示例
