@@ -40,6 +40,9 @@ const ai = aiLevel(post.body ?? '');
 
 const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
 
+// 文章题图：cover 优先于 heroImage，都没有时回落到站点默认头图
+const bannerImage = d.cover ?? d.heroImage ?? '/img/bg/hero.svg';
+
 // 相关文章：优先读 R6c 语义相似缓存（TF-IDF 余弦），缺失/不足时回落到同标签重合度排序
 const allPosts = (await getCollection('blog', ({ data }) => !data.draft)).filter(
   (p) => p.id !== post.id
@@ -70,8 +73,8 @@ const related = [...simPosts, ...tagRelated]
   kind="post"
   ogImage={ogImage}
 >
-  <!-- ═══ 顶部通栏封面 ═══ -->
-  <header class="post-banner">
+  <!-- ═══ 顶部通栏封面（题图：cover > heroImage > 默认头图） ═══ -->
+  <header class="post-banner" style={`--pb-img:url('${bannerImage}')`}>
     <div class="pb-bg"></div>
     <div class="pb-overlay"></div>
     <div class="pb-content">
@@ -200,7 +203,8 @@ const related = [...simPosts, ...tagRelated]
   .pb-bg {
     position: absolute;
     inset: 0;
-    background-image: url('/img/bg/hero.svg');
+    /* 题图路径由内联 CSS 变量 --pb-img 传入（scoped style 无法直接插值） */
+    background-image: var(--pb-img, url('/img/bg/hero.svg'));
     background-size: cover;
     background-position: center 40%;
     filter: blur(1px);

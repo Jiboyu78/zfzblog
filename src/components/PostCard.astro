@@ -19,7 +19,8 @@ interface Props {
 const { post, index = 0, reversed, compact = false } = Astro.props;
 
 const d = post.data;
-const cover = resolveCover(post.id, d.heroImage);
+// 显式 cover 优先于 heroImage（schema 注释：cover 优先于图库随机）
+const cover = resolveCover(post.id, d.cover ?? d.heroImage);
 const isReversed = reversed ?? index % 2 === 1;
 
 const dateStr = d.pubDate.toLocaleDateString('zh-CN', {

@@ -29,12 +29,13 @@ const defaultModel = live2dConfig.defaultModel;
 /** 没有 Core 或没有可用模型 → 纯静态立绘模式 */
 const live2dEnabled = hasCore && models.length > 0;
 
-const { width, height } = live2dConfig.size;
+const { w: width, h: height } = live2dConfig.size;
 ---
 
 <div
   id="live2d-root"
   class="live2d-root no-print"
+  style={`--l2d-w:${width}px;--l2d-h:${height}px`}
   data-default={defaultModel}
   data-models={JSON.stringify(models)}
   data-enabled={live2dEnabled ? 'true' : 'false'}
@@ -65,8 +66,11 @@ const { width, height } = live2dConfig.size;
     right: 1.6rem;
     bottom: 15.6rem;
     z-index: 45;
-    width: v-bind(width px);
-    height: v-bind(height px);
+    /* 宽高由根元素内联的 --l2d-w/--l2d-h 给定（Astro 不支持 v-bind，写了会被静默
+       丢弃，导致 stage/canvas 塌成 0×0 —— 看板娘整个不可见）。
+       用 CSS 变量而非直接内联宽高，是为了让下方移动端 media query 还能覆盖。 */
+    width: var(--l2d-w, 200px);
+    height: var(--l2d-h, 260px);
     pointer-events: none;
     transition: opacity 0.5s var(--t-ease), transform 0.5s var(--t-ease);
   }
@@ -144,7 +148,9 @@ const { width, height } = live2dConfig.size;
   .restore-btn {
     position: fixed;
     right: 1.6rem;
-    bottom: 13rem;
+    /* 悬浮工具组共 3 个 4rem 圆形按钮 + 间距，底部 1.6rem 起，
+       顶部约在 15.2rem；唤回按钮放到它上方，避免互相遮挡 */
+    bottom: 16.2rem;
     z-index: 46;
     width: 3.6rem;
     height: 3.6rem;
@@ -172,7 +178,7 @@ const { width, height } = live2dConfig.size;
     .live2d-root { width: 100px; height: 140px; right: 0.2rem; bottom: 13rem; }
     .fallback-img { height: 80%; right: 0; }
     .bubble { max-width: 145px; font-size: 1.05rem; padding: 0.45rem 0.65rem; }
-    .restore-btn { width: 2.6rem; height: 2.6rem; right: 0.6rem; bottom: 17rem; }
+    .restore-btn { width: 2.6rem; height: 2.6rem; right: 0.6rem; bottom: 16.2rem; }
   }
 </style>
 
